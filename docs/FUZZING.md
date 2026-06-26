@@ -16,4 +16,6 @@ build/debug/orbit_graph_sequence_fuzz corpus
 build/debug/orbit_query_pipeline_fuzz corpus
 ```
 
+With the manual MSVC fallback, use the corresponding executables in `build\manual\`.
+
 Pending work includes byte-driven libFuzzer entry points, original seed corpora, dictionaries, minimization workflow, and sequence comparison against an independent reference model.

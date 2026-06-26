@@ -16,4 +16,14 @@ cmake --build --preset debug
 ctest --preset debug
 ```
 
-The current environment used by the agent did not have `cmake`, `ninja`, or a C++ compiler on `PATH`, so executable results must be produced on a configured toolchain.
+When CMake is unavailable but Visual Studio Build Tools are installed, run:
+
+```bat
+scripts\build_msvc.cmd
+build\manual\orbit_unit_tests.exe
+build\manual\orbit_ogr_parser_fuzz.exe corpus
+build\manual\orbit_graph_sequence_fuzz.exe corpus
+build\manual\orbit_query_pipeline_fuzz.exe corpus
+```
+
+The current agent environment has MSVC Build Tools but still does not have `cmake` on `PATH`.

@@ -58,9 +58,10 @@ ORBIT_TEST(InvalidIntervalRecordRejected) {
                               orbit::CommitSeq{1}};
   auto appended = orbit::ogr::append_transaction(path, orbit::CommitSeq{0}, orbit::CommitSeq{1},
                                                  {node}, {}, {}, {});
-  REQUIRE(appended);
+  REQUIRE(!appended);
   auto image = orbit::ogr::read_store(path);
-  REQUIRE(!image);
+  REQUIRE(image);
+  REQUIRE(image.value().latest_commit.value == 0);
 }
 
 ORBIT_TEST(Crc32cIsDeterministic) {

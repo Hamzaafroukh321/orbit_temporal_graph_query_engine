@@ -275,20 +275,53 @@ Result<void> validate_header(const std::vector<std::uint8_t>& bytes) {
   return {};
 }
 
-std::vector<std::uint8_t> encode_node(const NodeVersionView& node, bool tombstone,
-                                      Limits limits) {
+Result<std::vector<std::uint8_t>> encode_node(const NodeVersionView& node, bool tombstone,
+                                              Limits limits) {
+  if (node.id.value == 0) {
+    return make_error(ErrorCode::Format, "node id must be nonzero", "ogr");
+  }
+  if (!tombstone) {
+    if (node.label.empty()) {
+      return make_error(ErrorCode::Format, "node label must not be empty", "ogr");
+    }
+    auto interval = validate_interval(node.interval);
+    if (!interval) {
+      return interval.error();
+    }
+  }
   std::vector<std::uint8_t> payload;
   put_u64(payload, node.id.value);
   put_i64(payload, node.interval.start);
   put_i64(payload, node.interval.end);
   put_u8(payload, tombstone ? 1U : 0U);
-  (void)put_string(payload, node.label, limits);
-  (void)put_properties(payload, node.properties, limits);
+  auto label = put_string(payload, node.label, limits);
+  if (!label) {
+    return label.error();
+  }
+  auto properties = put_properties(payload, node.properties, limits);
+  if (!properties) {
+    return properties.error();
+  }
   return payload;
 }
 
-std::vector<std::uint8_t> encode_edge(const EdgeVersionView& edge, bool tombstone,
-                                      Limits limits) {
+Result<std::vector<std::uint8_t>> encode_edge(const EdgeVersionView& edge, bool tombstone,
+                                              Limits limits) {
+  if (edge.id.value == 0) {
+    return make_error(ErrorCode::Format, "edge id must be nonzero", "ogr");
+  }
+  if (!tombstone) {
+    if (edge.from.value == 0 || edge.to.value == 0) {
+      return make_error(ErrorCode::Format, "edge endpoint id must be nonzero", "ogr");
+    }
+    if (edge.type.empty()) {
+      return make_error(ErrorCode::Format, "edge type must not be empty", "ogr");
+    }
+    auto interval = validate_interval(edge.interval);
+    if (!interval) {
+      return interval.error();
+    }
+  }
   std::vector<std::uint8_t> payload;
   put_u64(payload, edge.id.value);
   put_u64(payload, edge.from.value);
@@ -296,8 +329,14 @@ std::vector<std::uint8_t> encode_edge(const EdgeVersionView& edge, bool tombston
   put_i64(payload, edge.interval.start);
   put_i64(payload, edge.interval.end);
   put_u8(payload, tombstone ? 1U : 0U);
-  (void)put_string(payload, edge.type, limits);
-  (void)put_properties(payload, edge.properties, limits);
+  auto type = put_string(payload, edge.type, limits);
+  if (!type) {
+    return type.error();
+  }
+  auto properties = put_properties(payload, edge.properties, limits);
+  if (!properties) {
+    return properties.error();
+  }
   return payload;
 }
 
@@ -469,7 +508,7 @@ std::uint32_t crc32c(const std::vector<std::uint8_t>& bytes) noexcept {
   for (auto byte : bytes) {
     crc ^= byte;
     for (int bit = 0; bit < 8; ++bit) {
-      const auto mask = static_cast<std::uint32_t>(-(crc & 1U));
+      const auto mask = static_cast<std::uint32_t>(0U - (crc & 1U));
       crc = (crc >> 1U) ^ (0x82f63b78U & mask);
     }
   }
@@ -596,25 +635,37 @@ Result<void> append_transaction(const std::filesystem::path& path, CommitSeq par
 
   for (const auto& node : nodes) {
     auto payload = encode_node(node, false, limits);
-    digest_input.insert(digest_input.end(), payload.begin(), payload.end());
-    records.push_back(encode_record(RecordType::NodeVersion, node.id.value, commit, payload));
+    if (!payload) {
+      return payload.error();
+    }
+    digest_input.insert(digest_input.end(), payload.value().begin(), payload.value().end());
+    records.push_back(encode_record(RecordType::NodeVersion, node.id.value, commit, payload.value()));
   }
   for (const auto& id : node_tombstones) {
     NodeVersionView tombstone{id, "", Interval{0, 1}, {}, commit};
     auto payload = encode_node(tombstone, true, limits);
-    digest_input.insert(digest_input.end(), payload.begin(), payload.end());
-    records.push_back(encode_record(RecordType::NodeVersion, id.value, commit, payload));
+    if (!payload) {
+      return payload.error();
+    }
+    digest_input.insert(digest_input.end(), payload.value().begin(), payload.value().end());
+    records.push_back(encode_record(RecordType::NodeVersion, id.value, commit, payload.value()));
   }
   for (const auto& edge : edges) {
     auto payload = encode_edge(edge, false, limits);
-    digest_input.insert(digest_input.end(), payload.begin(), payload.end());
-    records.push_back(encode_record(RecordType::EdgeVersion, edge.id.value, commit, payload));
+    if (!payload) {
+      return payload.error();
+    }
+    digest_input.insert(digest_input.end(), payload.value().begin(), payload.value().end());
+    records.push_back(encode_record(RecordType::EdgeVersion, edge.id.value, commit, payload.value()));
   }
   for (const auto& id : edge_tombstones) {
     EdgeVersionView tombstone{id, NodeId{0}, NodeId{0}, "", Interval{0, 1}, {}, commit};
     auto payload = encode_edge(tombstone, true, limits);
-    digest_input.insert(digest_input.end(), payload.begin(), payload.end());
-    records.push_back(encode_record(RecordType::EdgeVersion, id.value, commit, payload));
+    if (!payload) {
+      return payload.error();
+    }
+    digest_input.insert(digest_input.end(), payload.value().begin(), payload.value().end());
+    records.push_back(encode_record(RecordType::EdgeVersion, id.value, commit, payload.value()));
   }
 
   std::vector<std::uint8_t> commit_payload;

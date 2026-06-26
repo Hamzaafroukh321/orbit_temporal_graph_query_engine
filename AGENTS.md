@@ -5,6 +5,7 @@
 - Configure: `cmake --preset debug`
 - Build: `cmake --build --preset debug`
 - Release build: `cmake --preset release && cmake --build --preset release`
+- Manual MSVC fallback when CMake is unavailable: `scripts\build_msvc.cmd`
 
 ## Test
 
@@ -12,6 +13,7 @@
 - ASan/UBSan: `cmake --preset asan && cmake --build --preset asan && ctest --preset asan`
 - TSan, where supported by the host toolchain: `cmake --preset tsan && cmake --build --preset tsan && ctest --preset tsan`
 - Fuzz smoke targets are normal executables named `orbit_ogr_parser_fuzz`, `orbit_graph_sequence_fuzz`, and `orbit_query_pipeline_fuzz`.
+- After `scripts\build_msvc.cmd`, run `build\manual\orbit_unit_tests.exe` and the three `build\manual\orbit_*_fuzz.exe corpus` smoke commands.
 
 ## Layout
 

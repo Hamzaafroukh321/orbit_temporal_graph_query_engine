@@ -10,11 +10,11 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-021 vertical slice are committed through `be72f83`, with a follow-up checked-arithmetic fix in `5349235`. The code is not verified by a compiler in this environment.
+ORB-001 through the initial ORB-021 vertical slice are committed through `be72f83`, with follow-up build and writer fixes in progress. The code now builds and passes the manual MSVC verification path.
 
 ## Next Actionable Ticket
 
-Install or expose a C++20 toolchain with CMake, then run debug/release/sanitizer builds and fix any compile or test failures. After that, continue with ORB-022 temporal interval index integration and ORB-023 adjacency continuation keys.
+Install or expose CMake, then run the documented CMake debug/release/sanitizer builds. In parallel, continue with ORB-022 temporal interval index integration and ORB-023 adjacency continuation keys.
 
 ## Completed Modules
 
@@ -25,6 +25,7 @@ Install or expose a C++20 toolchain with CMake, then run debug/release/sanitizer
 - Single-writer transactions, immutable snapshots, reopen/check and stable commit IDs.
 - OQS subset parser, explain fingerprints, scan, one-hop and bounded path execution.
 - Snapshot-local label, property, and adjacency indexes used by query execution.
+- Manual MSVC build fallback for library, CLI, tests, and fuzz smoke executables.
 - CLI workflow for init/apply/query/explain/check/inspect.
 - Named unit/integration tests and three fuzz smoke targets.
 
@@ -34,22 +35,24 @@ Install or expose a C++20 toolchain with CMake, then run debug/release/sanitizer
 
 ## Known Blockers
 
-- Local verification blocker: `cmake`, `ninja`, `cl`, `clang++`, and `g++` are not available on `PATH` in this environment.
+- CMake remains unavailable on `PATH`, so CMake presets, CTest, CMake sanitizer presets, and install/export behavior are not verified.
 - Full-version implementation remains substantially incomplete; unsupported items are tracked as `Not started` or `Blocked` rather than claimed complete.
 
 ## Build And Test Status
 
-- `cmake --preset debug` attempted and failed because `cmake` is not recognized on `PATH`.
-- Direct compiler discovery with `where.exe cl`, `where.exe clang++`, `where.exe g++`, and `where.exe ninja` found no executables.
-- No compile, CTest, or CLI run has completed.
+- `where.exe cmake` failed; CMake is not on `PATH`.
+- MSVC Build Tools were found through `C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat`.
+- Manual MSVC `/std:c++20 /EHsc /W4 /WX` build succeeded for `orbit_unit_tests.exe`, `orbit.exe`, and all three fuzz smoke executables.
+- `build\manual\orbit_unit_tests.exe` passed: 41 tests, 0 failed.
+- CLI workflow passed: `init`, `apply`, `query`, `explain`, and `check`.
 
 ## Sanitizer Status
 
-ASan/UBSan and TSan presets exist, but no sanitizer run has completed because no local C++ toolchain is available.
+ASan/UBSan and TSan presets exist, but sanitizer runs have not completed because CMake is unavailable and MSVC sanitizer support has not been configured for this project.
 
 ## Fuzz Status
 
-Three production-linked fuzz smoke targets exist in `fuzz/`, but they have not been built or run because no local C++ toolchain is available.
+Three production-linked fuzz smoke targets exist in `fuzz/`. All three build with the manual MSVC fallback and run successfully against `corpus`.
 
 ## Documentation Status
 
@@ -66,7 +69,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`5349235` (`fix(store): check commit sequence increment`) has passed `git diff --cached --check`; executable build/test verification is blocked by missing local toolchain.
+`5349235` (`fix(store): check commit sequence increment`) has passed `git diff --cached --check`; additional build/writer fixes are in progress and manually verified with MSVC.
 
 ## Timestamp
 

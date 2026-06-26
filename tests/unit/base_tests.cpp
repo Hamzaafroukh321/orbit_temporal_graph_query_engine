@@ -30,8 +30,11 @@ ORBIT_TEST(IntervalRejectsEmptyRange) {
 }
 
 ORBIT_TEST(IntervalOverlapUsesHalfOpenSemantics) {
-  REQUIRE(!orbit::Interval{0, 5}.overlaps(orbit::Interval{5, 10}));
-  REQUIRE(orbit::Interval{0, 6}.overlaps(orbit::Interval{5, 10}));
+  const orbit::Interval first{0, 5};
+  const orbit::Interval second{5, 10};
+  const orbit::Interval overlapping{0, 6};
+  REQUIRE(!first.overlaps(second));
+  REQUIRE(overlapping.overlaps(second));
 }
 
 ORBIT_TEST(CanonicalPropertiesAreSorted) {

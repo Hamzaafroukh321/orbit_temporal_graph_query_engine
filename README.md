@@ -21,6 +21,13 @@ ctest --preset debug
 
 Sanitizer presets are available as `asan` and `tsan` where the host toolchain supports them.
 
+On Windows hosts with Visual Studio Build Tools but no CMake on `PATH`, the checked fallback is:
+
+```bat
+scripts\build_msvc.cmd
+build\manual\orbit_unit_tests.exe
+```
+
 ## CLI Example
 
 ```sh

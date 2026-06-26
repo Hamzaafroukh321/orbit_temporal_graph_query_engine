@@ -44,6 +44,7 @@ if(ORBIT_BUILD_TESTS)
     tests/unit/format_tests.cpp
     tests/integration/store_query_tests.cpp)
   target_link_libraries(orbit_unit_tests PRIVATE orbit::orbit)
+  target_include_directories(orbit_unit_tests PRIVATE tests/unit)
   orbit_set_warnings(orbit_unit_tests)
   orbit_enable_sanitizers(orbit_unit_tests)
   add_test(NAME orbit_unit_tests COMMAND orbit_unit_tests)
