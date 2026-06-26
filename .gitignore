@@ -30,3 +30,6 @@ install_manifest.txt
 corpus/**/crashes/
 corpus/**/queue/
 corpus/**/artifacts/
+corpus/ogr/fuzz_smoke.ogr
+corpus/sequences/fuzz_sequence.ogr
+corpus/queries/fuzz_query.ogr

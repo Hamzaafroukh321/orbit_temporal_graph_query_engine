@@ -10,11 +10,11 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-033 vertical slice is implemented and manually verified through `12ae6f1`.
+ORB-001 through ORB-034 are implemented and manually verified in the working tree. ORB-034 is pending commit hash assignment.
 
 ## Next Actionable Ticket
 
-Install or expose CMake, then run the documented CMake debug/release/sanitizer builds. In parallel, continue with ORB-034 allocation/I/O/cancel fault matrices.
+Install or expose CMake, then run the documented CMake debug/release/sanitizer builds. In parallel, continue with ORB-035 sanitizer/coverage/regression automation.
 
 ## Completed Modules
 
@@ -35,6 +35,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer b
 - Compaction publish/retire API that rejects pinned source generations and retires unpinned older index generations.
 - Cancellation token, query work budget enforcement, and store shutdown rejection for new work.
 - Byte-driven OGR parser/recovery, graph sequence, and query pipeline fuzz smoke harnesses.
+- Fault matrix tests and script for I/O-open failure, malformed mutation rollback, shutdown/cancel safety, compaction failure preservation, and fuzz smoke.
 - Manual MSVC build fallback for library, CLI, tests, and fuzz smoke executables.
 - CLI workflow for init/apply/query/explain/check/inspect.
 - Named unit/integration tests and three fuzz smoke targets.
@@ -54,7 +55,8 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer b
 - MSVC Build Tools were found through `C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat`.
 - `scripts\build_msvc.cmd` succeeded.
 - Manual MSVC `/std:c++20 /EHsc /W4 /WX` build succeeded for `orbit_unit_tests.exe`, `orbit.exe`, and all three fuzz smoke executables.
-- `build\manual\orbit_unit_tests.exe` passed: 65 tests, 0 failed.
+- `build\manual\orbit_unit_tests.exe` passed: 69 tests, 0 failed.
+- Fault matrix smoke passed through `scripts\run_fault_matrix.cmd` build/test output, plus direct successful runs of all three fuzz smoke executables.
 - CLI workflow passed: `init`, `apply`, `query`, `explain`, and `check`.
 
 ## Sanitizer Status
@@ -81,7 +83,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`12ae6f1` (`fuzz(core): make smoke harnesses byte driven`) has passed manual MSVC build/test/fuzz verification.
+`12ae6f1` (`fuzz(core): make smoke harnesses byte driven`) has passed manual MSVC build/test/fuzz verification. ORB-034 is verified in the working tree and awaiting commit.
 
 ## Timestamp
 

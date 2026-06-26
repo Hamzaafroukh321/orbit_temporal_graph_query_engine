@@ -26,4 +26,10 @@ build\manual\orbit_graph_sequence_fuzz.exe corpus
 build\manual\orbit_query_pipeline_fuzz.exe corpus
 ```
 
+Fault matrix smoke:
+
+```bat
+scripts\run_fault_matrix.cmd
+```
+
 The current agent environment has MSVC Build Tools but still does not have `cmake` on `PATH`.

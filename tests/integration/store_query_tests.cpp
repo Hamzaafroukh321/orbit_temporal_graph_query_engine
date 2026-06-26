@@ -704,3 +704,56 @@ ORBIT_TEST(StoreShutdownRejectsOpenTransactionCommit) {
   REQUIRE(!committed);
   REQUIRE(committed.error().code == orbit::ErrorCode::Cancelled);
 }
+
+ORBIT_TEST(FaultMatrixMissingStoreOpenFailsClosed) {
+  auto path = orbit::test::temp_path("missing_store_open.ogr");
+  auto opened = orbit::GraphStore::open(path);
+  REQUIRE(!opened);
+  REQUIRE(opened.error().code == orbit::ErrorCode::Io);
+}
+
+ORBIT_TEST(FaultMatrixBadMutationLeavesCommitHeadUnchanged) {
+  auto store = sample_store("fault_bad_mutation_commit_head");
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{1}, "Service", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().put_edge(orbit::EdgeId{1}, orbit::NodeId{1}, orbit::NodeId{404}, "DEPENDS",
+                               orbit::Interval{0, 100}));
+  auto committed = txn.value().commit();
+  REQUIRE(!committed);
+  REQUIRE(store.latest_commit().value == 0);
+  REQUIRE(store.check());
+}
+
+ORBIT_TEST(FaultMatrixHeldSnapshotSurvivesShutdown) {
+  auto store = sample_store("fault_snapshot_shutdown");
+  seed_graph(store);
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  auto prepared = store.prepare("FROM Service STEP OUT DEPENDS YIELD node.id");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+  REQUIRE(store.shutdown());
+  auto cursor = prepared.value().execute(snapshot.value());
+  REQUIRE(cursor);
+  auto batch = cursor.value().next(10);
+  REQUIRE(batch);
+  REQUIRE(batch.value().has_value());
+  REQUIRE(batch.value()->rows.size() == 1);
+}
+
+ORBIT_TEST(FaultMatrixCompactionFailurePreservesCacheState) {
+  auto store = sample_store("fault_compaction_preserve_cache");
+  seed_graph(store);
+  auto held = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  REQUIRE(held);
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{99}, "Service", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().commit());
+  auto before = store.cache_stats();
+  auto compacted = store.compact(1);
+  auto after = store.cache_stats();
+  REQUIRE(!compacted);
+  REQUIRE(before.pinned_generations == after.pinned_generations);
+  REQUIRE(before.total_pins == after.total_pins);
+}
