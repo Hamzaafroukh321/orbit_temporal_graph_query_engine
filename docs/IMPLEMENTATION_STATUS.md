@@ -10,11 +10,11 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-025 vertical slice is implemented and manually verified through `fed3a13`.
+ORB-001 through the initial ORB-026 vertical slice is implemented and manually verified. Index coverage metadata changes are pending commit.
 
 ## Next Actionable Ticket
 
-Install or expose CMake, then run the documented CMake debug/release/sanitizer builds. In parallel, continue with ORB-026 index coverage generations/background builder after ORB-025 verification.
+Install or expose CMake, then run the documented CMake debug/release/sanitizer builds. In parallel, continue with ORB-027 cache leases and eviction after ORB-026 verification.
 
 ## Completed Modules
 
@@ -29,6 +29,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer b
 - Stable value-based continuation keys for scan, adjacency, and path result batches.
 - Bounded BFS path execution with explicit hop/frontier resource errors and simple-path cycle rejection.
 - Cost-aware bounded path ordering using finite nonnegative edge properties.
+- Snapshot index coverage metadata with generation and commit coverage boundaries.
 - Manual MSVC build fallback for library, CLI, tests, and fuzz smoke executables.
 - CLI workflow for init/apply/query/explain/check/inspect.
 - Named unit/integration tests and three fuzz smoke targets.
@@ -48,7 +49,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer b
 - MSVC Build Tools were found through `C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat`.
 - `scripts\build_msvc.cmd` succeeded.
 - Manual MSVC `/std:c++20 /EHsc /W4 /WX` build succeeded for `orbit_unit_tests.exe`, `orbit.exe`, and all three fuzz smoke executables.
-- `build\manual\orbit_unit_tests.exe` passed: 51 tests, 0 failed.
+- `build\manual\orbit_unit_tests.exe` passed: 53 tests, 0 failed.
 - CLI workflow passed: `init`, `apply`, `query`, `explain`, and `check`.
 
 ## Sanitizer Status
@@ -74,7 +75,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`fed3a13` (`feat(query): add cost-aware path ordering`) has passed manual MSVC build/test/fuzz verification.
+`fed3a13` (`feat(query): add cost-aware path ordering`) has passed manual MSVC build/test/fuzz verification. ORB-026 index coverage changes are manually verified and awaiting commit.
 
 ## Timestamp
 

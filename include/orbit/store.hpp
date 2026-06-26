@@ -40,6 +40,15 @@ struct EdgeVersionView {
   CommitSeq begin_commit;
 };
 
+struct IndexCoverage {
+  std::uint64_t generation{0};
+  CommitSeq covers_through{};
+
+  [[nodiscard]] bool covers(CommitSeq commit) const noexcept {
+    return commit.value <= covers_through.value;
+  }
+};
+
 class GraphSnapshot {
  public:
   struct Impl;
@@ -57,6 +66,7 @@ class GraphSnapshot {
                                                                  const PropertyValue& value) const;
   [[nodiscard]] std::vector<EdgeVersionView> out_edges(NodeId from,
                                                        std::string_view type) const;
+  [[nodiscard]] IndexCoverage index_coverage() const;
 
  private:
   std::shared_ptr<const Impl> impl_;

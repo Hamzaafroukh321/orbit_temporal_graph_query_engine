@@ -515,3 +515,26 @@ ORBIT_TEST(CostAwarePathExplainIncludesCostOrder) {
   REQUIRE(std::find(explain.operators.begin(), explain.operators.end(), "cost-order(weight)") !=
           explain.operators.end());
 }
+
+ORBIT_TEST(IndexCoverageMatchesSnapshotCommit) {
+  auto store = sample_store("index_coverage_commit");
+  seed_graph(store);
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  REQUIRE(snapshot);
+  auto coverage = snapshot.value().index_coverage();
+  REQUIRE(coverage.covers(snapshot.value().commit()));
+  REQUIRE(!coverage.covers(orbit::CommitSeq{snapshot.value().commit().value + 1U}));
+}
+
+ORBIT_TEST(HeldSnapshotKeepsOldIndexCoverageAfterNewCommit) {
+  auto store = sample_store("index_coverage_held_snapshot");
+  seed_graph(store);
+  auto held = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  REQUIRE(held);
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{99}, "Service", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().commit());
+  REQUIRE(held.value().index_coverage().covers(orbit::CommitSeq{1}));
+  REQUIRE(!held.value().index_coverage().covers(orbit::CommitSeq{2}));
+}

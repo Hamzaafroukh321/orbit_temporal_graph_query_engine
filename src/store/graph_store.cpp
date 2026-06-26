@@ -99,6 +99,7 @@ struct GraphSnapshot::Impl {
   std::int64_t valid_time{0};
   std::vector<NodeVersionView> nodes;
   std::vector<EdgeVersionView> edges;
+  IndexCoverage index_coverage;
   std::map<std::string, std::vector<std::size_t>> label_index;
   std::map<std::string, std::vector<std::size_t>> property_index;
   std::map<NodeId, std::map<std::string, std::vector<std::size_t>>> out_adjacency;
@@ -192,6 +193,10 @@ std::vector<EdgeVersionView> GraphSnapshot::out_edges(NodeId from, std::string_v
   return result;
 }
 
+IndexCoverage GraphSnapshot::index_coverage() const {
+  return impl_->index_coverage;
+}
+
 struct GraphStore::Impl : std::enable_shared_from_this<GraphStore::Impl> {
   explicit Impl(std::filesystem::path store_path, Limits configured_limits)
       : path(std::move(store_path)), limits(configured_limits) {}
@@ -213,6 +218,8 @@ struct GraphStore::Impl : std::enable_shared_from_this<GraphStore::Impl> {
     auto snapshot = std::make_shared<GraphSnapshot::Impl>();
     snapshot->commit = commit;
     snapshot->valid_time = selector.valid_time;
+    snapshot->index_coverage =
+        IndexCoverage{commit.value == 0 ? std::uint64_t{1} : commit.value, commit};
 
     std::vector<NodeVersionView> commit_visible_nodes;
     for (const auto& [id, history] : nodes) {

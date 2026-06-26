@@ -30,6 +30,7 @@ The current implementation uses one store mutex around transaction publication a
 - Snapshot materialization separates commit visibility from temporal interval selection before publishing indexed views.
 - Edges only appear in snapshots when the edge and both endpoints are active at the selected valid time.
 - Snapshot indexes are rebuilt from canonical materialized vectors, so indexed query output remains scan-equivalent and stable.
+- Snapshot indexes declare a generation and commit coverage boundary; synchronous snapshot-local indexes cover exactly the snapshot commit.
 - Result batches carry value-based continuation keys derived from node IDs, edge IDs, and path IDs rather than raw iterators.
 - Path execution rejects hop/frontier limits explicitly and prevents repeated nodes within a path.
 - Cost-aware path mode accepts a numeric nonnegative edge property and orders materialized bounded paths by cumulative cost with continuation-key ties.
