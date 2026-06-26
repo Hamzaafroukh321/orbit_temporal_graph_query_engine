@@ -10,7 +10,7 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-026 vertical slice is implemented and manually verified. Index coverage metadata changes are pending commit.
+ORB-001 through the initial ORB-026 vertical slice is implemented and manually verified through `de8f4d6`.
 
 ## Next Actionable Ticket
 
@@ -75,7 +75,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`fed3a13` (`feat(query): add cost-aware path ordering`) has passed manual MSVC build/test/fuzz verification. ORB-026 index coverage changes are manually verified and awaiting commit.
+`de8f4d6` (`feat(index): add snapshot coverage metadata`) has passed manual MSVC build/test/fuzz verification.
 
 ## Timestamp
 
