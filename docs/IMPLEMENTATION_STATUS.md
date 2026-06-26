@@ -10,7 +10,7 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-028 vertical slice is implemented and manually verified. Retention planner changes are pending commit.
+ORB-001 through the initial ORB-028 vertical slice is implemented and manually verified through `6b5952b`.
 
 ## Next Actionable Ticket
 
@@ -77,7 +77,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`46f202c` (`feat(index): add generation lease eviction`) has passed manual MSVC build/test/fuzz verification. ORB-028 retention planner changes are manually verified and awaiting commit.
+`6b5952b` (`feat(compact): add retention planning report`) has passed manual MSVC build/test/fuzz verification.
 
 ## Timestamp
 
