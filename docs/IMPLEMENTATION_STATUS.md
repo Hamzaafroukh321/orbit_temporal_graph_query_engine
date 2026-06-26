@@ -10,11 +10,11 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through ORB-035 are implemented and manually verified through `17b03e4`.
+ORB-001 through ORB-036 are implemented and manually verified in the working tree. ORB-036 is pending commit hash assignment.
 
 ## Next Actionable Ticket
 
-Install or expose CMake, then run the documented CMake debug/release/sanitizer/coverage matrix. In parallel, continue with ORB-036 profiling and benchmark automation.
+Install or expose CMake, then run the documented CMake debug/release/sanitizer/coverage matrix. In parallel, continue with ORB-037 long snapshot/compaction/recovery soak automation.
 
 ## Completed Modules
 
@@ -38,6 +38,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer/c
 - Fault matrix tests and script for I/O-open failure, malformed mutation rollback, shutdown/cancel safety, compaction failure preservation, and fuzz smoke.
 - Regression, CLI smoke, MSVC verification, and CMake sanitizer/coverage matrix scripts.
 - Coverage CMake preset and coverage instrumentation option for non-MSVC toolchains.
+- In-process benchmark target and MSVC benchmark smoke for mutation, lookup, one-hop, and path execution.
 - Manual MSVC build fallback for library, CLI, tests, and fuzz smoke executables.
 - CLI workflow for init/apply/query/explain/check/inspect.
 - Named unit/integration tests and three fuzz smoke targets.
@@ -61,6 +62,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer/c
 - Fault matrix smoke passed through `scripts\run_fault_matrix.cmd` build/test output, plus direct successful runs of all three fuzz smoke executables.
 - `scripts\run_regression_matrix.cmd --no-build` passed, covering unit tests, fuzz smokes, CLI smoke, and fault matrix smoke.
 - `scripts\verify_msvc.cmd` passed, covering fresh manual build plus the full regression matrix.
+- `scripts\benchmark_msvc.cmd --no-build` passed and produced the local baseline in `docs/PERFORMANCE.md`.
 - `scripts\verify_cmake_matrix.cmd` exits 20 in this environment because `cmake` is not on `PATH`.
 - CLI workflow passed: `init`, `apply`, `query`, `explain`, and `check`.
 
@@ -78,7 +80,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Performance Status
 
-No benchmark has been run. Numeric performance requirements remain unverified.
+`scripts\benchmark_msvc.cmd --no-build` passed in this environment and records a small deterministic debug-style baseline in `docs/PERFORMANCE.md`. Full release-platform performance acceptance remains unverified.
 
 ## Deviations
 
@@ -88,7 +90,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`17b03e4` (`build: add regression verification automation`) has passed manual MSVC build/test/regression/fault/fuzz verification.
+`17b03e4` (`build: add regression verification automation`) has passed manual MSVC build/test/regression/fault/fuzz verification. ORB-036 is verified in the working tree and awaiting commit.
 
 ## Timestamp
 

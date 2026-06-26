@@ -7,6 +7,7 @@ project(orbit_temporal_graph_query_engine
 
 option(ORBIT_BUILD_TESTS "Build Orbit tests" ON)
 option(ORBIT_BUILD_FUZZ "Build Orbit fuzz smoke targets" ON)
+option(ORBIT_BUILD_TOOLS "Build Orbit developer tools" ON)
 option(ORBIT_WARNINGS_AS_ERRORS "Treat first-party warnings as errors" ON)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -55,6 +56,13 @@ if(ORBIT_BUILD_FUZZ)
   orbit_add_fuzz_smoke(orbit_ogr_parser_fuzz fuzz/fuzz_ogr_parser.cpp)
   orbit_add_fuzz_smoke(orbit_graph_sequence_fuzz fuzz/fuzz_graph_sequence.cpp)
   orbit_add_fuzz_smoke(orbit_query_pipeline_fuzz fuzz/fuzz_query_pipeline.cpp)
+endif()
+
+if(ORBIT_BUILD_TOOLS)
+  add_executable(orbit_benchmark tools/orbit_benchmark.cpp)
+  target_link_libraries(orbit_benchmark PRIVATE orbit::orbit)
+  orbit_set_warnings(orbit_benchmark)
+  orbit_enable_sanitizers(orbit_benchmark)
 endif()
 
 install(TARGETS orbit orbit_cli EXPORT orbitTargets)

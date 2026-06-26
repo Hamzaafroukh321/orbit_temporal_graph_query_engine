@@ -30,6 +30,12 @@ scripts\verify_msvc.cmd
 When CMake is available, `scripts\verify_cmake_matrix.cmd` runs the debug,
 release, RelWithDebInfo, ASan/UBSan, TSan, coverage, and fuzz-smoke presets.
 
+The local benchmark smoke is:
+
+```bat
+scripts\benchmark_msvc.cmd
+```
+
 ## CLI Example
 
 ```sh
