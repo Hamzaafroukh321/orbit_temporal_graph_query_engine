@@ -10,11 +10,11 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-024 vertical slice is implemented and manually verified through `111c9e7`.
+ORB-001 through the initial ORB-025 vertical slice is implemented and manually verified. Cost-aware path changes are pending commit.
 
 ## Next Actionable Ticket
 
-Install or expose CMake, then run the documented CMake debug/release/sanitizer builds. In parallel, continue with ORB-025 cost-aware path mode after ORB-024 verification.
+Install or expose CMake, then run the documented CMake debug/release/sanitizer builds. In parallel, continue with ORB-026 index coverage generations/background builder after ORB-025 verification.
 
 ## Completed Modules
 
@@ -28,6 +28,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer b
 - Explicit commit-visible candidate selection followed by temporal interval selection for snapshot materialization.
 - Stable value-based continuation keys for scan, adjacency, and path result batches.
 - Bounded BFS path execution with explicit hop/frontier resource errors and simple-path cycle rejection.
+- Cost-aware bounded path ordering using finite nonnegative edge properties.
 - Manual MSVC build fallback for library, CLI, tests, and fuzz smoke executables.
 - CLI workflow for init/apply/query/explain/check/inspect.
 - Named unit/integration tests and three fuzz smoke targets.
@@ -47,7 +48,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer b
 - MSVC Build Tools were found through `C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat`.
 - `scripts\build_msvc.cmd` succeeded.
 - Manual MSVC `/std:c++20 /EHsc /W4 /WX` build succeeded for `orbit_unit_tests.exe`, `orbit.exe`, and all three fuzz smoke executables.
-- `build\manual\orbit_unit_tests.exe` passed: 48 tests, 0 failed.
+- `build\manual\orbit_unit_tests.exe` passed: 51 tests, 0 failed.
 - CLI workflow passed: `init`, `apply`, `query`, `explain`, and `check`.
 
 ## Sanitizer Status
@@ -73,7 +74,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`111c9e7` (`feat(query): harden bounded path traversal`) has passed manual MSVC build/test/fuzz verification.
+`111c9e7` (`feat(query): harden bounded path traversal`) has passed manual MSVC build/test/fuzz verification. ORB-025 cost-aware path changes are manually verified and awaiting commit.
 
 ## Timestamp
 

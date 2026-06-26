@@ -467,3 +467,51 @@ ORBIT_TEST(PathCycleDoesNotRepeatSeedNode) {
   REQUIRE(rows.size() == 1);
   REQUIRE(std::get<std::string>(rows[0].values[0]) == "1->2");
 }
+
+ORBIT_TEST(CostAwarePathOrdersByCumulativeCost) {
+  auto store = sample_store("cost_path_order");
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{1}, "Service", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().put_node(orbit::NodeId{2}, "Node", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().put_node(orbit::NodeId{3}, "Node", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().put_edge(orbit::EdgeId{1}, orbit::NodeId{1}, orbit::NodeId{2}, "DEPENDS",
+                               orbit::Interval{0, 100}, {{"weight", std::int64_t{10}}}));
+  REQUIRE(txn.value().put_edge(orbit::EdgeId{2}, orbit::NodeId{1}, orbit::NodeId{3}, "DEPENDS",
+                               orbit::Interval{0, 100}, {{"weight", std::int64_t{1}}}));
+  REQUIRE(txn.value().commit());
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 10});
+  auto prepared = store.prepare("FROM Service PATH OUT DEPENDS HOPS 1 COST weight YIELD path");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+  auto rows = drain(prepared.value().execute(snapshot.value()).value(), 10);
+  REQUIRE(rows.size() == 2);
+  REQUIRE(std::get<std::string>(rows[0].values[0]) == "1->3");
+  REQUIRE(std::get<std::string>(rows[1].values[0]) == "1->2");
+}
+
+ORBIT_TEST(CostAwarePathRejectsNegativeCost) {
+  auto store = sample_store("cost_path_negative");
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{1}, "Service", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().put_node(orbit::NodeId{2}, "Node", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().put_edge(orbit::EdgeId{1}, orbit::NodeId{1}, orbit::NodeId{2}, "DEPENDS",
+                               orbit::Interval{0, 100}, {{"weight", std::int64_t{-1}}}));
+  REQUIRE(txn.value().commit());
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 10});
+  auto prepared = store.prepare("FROM Service PATH OUT DEPENDS HOPS 1 COST weight YIELD path");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+  auto cursor = prepared.value().execute(snapshot.value());
+  REQUIRE(!cursor);
+  REQUIRE(cursor.error().code == orbit::ErrorCode::QueryType);
+}
+
+ORBIT_TEST(CostAwarePathExplainIncludesCostOrder) {
+  auto prepared = orbit::prepare_query("FROM Service PATH OUT DEPENDS HOPS 2 COST weight YIELD path");
+  REQUIRE(prepared);
+  auto explain = prepared.value().explain();
+  REQUIRE(std::find(explain.operators.begin(), explain.operators.end(), "cost-order(weight)") !=
+          explain.operators.end());
+}

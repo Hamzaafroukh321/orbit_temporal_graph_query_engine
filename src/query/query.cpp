@@ -4,7 +4,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <deque>
+#include <numeric>
 #include <set>
 #include <sstream>
 
@@ -34,6 +36,7 @@ struct QueryAst {
   Mode mode{Mode::Scan};
   std::string edge_type;
   std::size_t path_hops{1};
+  std::optional<std::string> cost_property;
   YieldKind yield{YieldKind::NodeId};
 };
 
@@ -179,6 +182,12 @@ class Parser {
         }
         ast.path_hops = static_cast<std::size_t>(hops.value());
       }
+      if (match("COST")) {
+        if (eof()) {
+          return syntax("expected edge cost property");
+        }
+        ast.cost_property = tokens_[pos_++].text;
+      }
     }
 
     if (!match("YIELD")) {
@@ -298,6 +307,32 @@ std::string path_string(const std::vector<NodeId>& nodes) {
   return out.str();
 }
 
+Result<double> edge_cost(const EdgeVersionView& edge, const std::string& property) {
+  const auto found = edge.properties.find(property);
+  if (found == edge.properties.end()) {
+    return make_error(ErrorCode::QueryType, "edge is missing path cost property", "query");
+  }
+  return std::visit(
+      [](const auto& value) -> Result<double> {
+        using T = std::decay_t<decltype(value)>;
+        if constexpr (std::is_same_v<T, std::int64_t>) {
+          if (value < 0) {
+            return make_error(ErrorCode::QueryType, "path cost must be nonnegative", "query");
+          }
+          return static_cast<double>(value);
+        } else if constexpr (std::is_same_v<T, double>) {
+          if (!std::isfinite(value) || value < 0.0) {
+            return make_error(ErrorCode::QueryType, "path cost must be finite and nonnegative",
+                              "query");
+          }
+          return value;
+        } else {
+          return make_error(ErrorCode::QueryType, "path cost property must be numeric", "query");
+        }
+      },
+      found->second);
+}
+
 }  // namespace
 
 struct PreparedQuery::Impl {
@@ -353,28 +388,32 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
   }
   std::vector<QueryRow> rows;
   std::vector<std::string> continuation_keys;
-  auto emit_node = [&](NodeId id, std::string key) -> Result<void> {
+  std::vector<double> row_costs;
+  auto emit_node = [&](NodeId id, std::string key, double cost) -> Result<void> {
     if (rows.size() >= limits.row_limit) {
       return make_error(ErrorCode::ResourceLimit, "query row limit exceeded", "query");
     }
     rows.push_back(QueryRow{{static_cast<std::int64_t>(id.value)}});
     continuation_keys.push_back(std::move(key));
+    row_costs.push_back(cost);
     return {};
   };
-  auto emit_edge = [&](EdgeId id, std::string key) -> Result<void> {
+  auto emit_edge = [&](EdgeId id, std::string key, double cost) -> Result<void> {
     if (rows.size() >= limits.row_limit) {
       return make_error(ErrorCode::ResourceLimit, "query row limit exceeded", "query");
     }
     rows.push_back(QueryRow{{static_cast<std::int64_t>(id.value)}});
     continuation_keys.push_back(std::move(key));
+    row_costs.push_back(cost);
     return {};
   };
-  auto emit_path = [&](const std::vector<NodeId>& path, std::string key) -> Result<void> {
+  auto emit_path = [&](const std::vector<NodeId>& path, std::string key, double cost) -> Result<void> {
     if (rows.size() >= limits.row_limit) {
       return make_error(ErrorCode::ResourceLimit, "query row limit exceeded", "query");
     }
     rows.push_back(QueryRow{{path_string(path)}});
     continuation_keys.push_back(std::move(key));
+    row_costs.push_back(cost);
     return {};
   };
 
@@ -394,7 +433,7 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
 
   if (impl_->ast.mode == Mode::Scan) {
     for (const auto& node : seeds) {
-      auto emitted = emit_node(node.id, "scan:" + std::to_string(node.id.value));
+      auto emitted = emit_node(node.id, "scan:" + std::to_string(node.id.value), 0.0);
       if (!emitted) {
         return emitted.error();
       }
@@ -411,8 +450,8 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
         const std::string key = "adj:" + std::to_string(seed.id.value) + ":" +
                                 std::to_string(edge.id.value) + ":" +
                                 std::to_string(edge.to.value);
-        auto emitted = impl_->ast.yield == YieldKind::EdgeId ? emit_edge(edge.id, key)
-                                                             : emit_node(edge.to, key);
+        auto emitted = impl_->ast.yield == YieldKind::EdgeId ? emit_edge(edge.id, key, 0.0)
+                                                             : emit_node(edge.to, key, 0.0);
         if (!emitted) {
           return emitted.error();
         }
@@ -431,6 +470,7 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
       NodeId node;
       std::vector<NodeId> path;
       std::size_t hops{0};
+      double cost{0.0};
     };
     std::deque<Frontier> queue;
     queue.push_back(Frontier{seed.id, {seed.id}, 0});
@@ -447,21 +487,29 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
         if (std::find(current.path.begin(), current.path.end(), edge.to) != current.path.end()) {
           continue;
         }
+        double next_cost = current.cost + 1.0;
+        if (impl_->ast.cost_property) {
+          auto cost = edge_cost(edge, *impl_->ast.cost_property);
+          if (!cost) {
+            return cost.error();
+          }
+          next_cost = current.cost + cost.value();
+        }
         auto next_path = current.path;
         next_path.push_back(edge.to);
         const std::string key = "path:" + path_string(next_path);
         if (impl_->ast.yield == YieldKind::Path) {
-          auto emitted = emit_path(next_path, key);
+          auto emitted = emit_path(next_path, key, next_cost);
           if (!emitted) {
             return emitted.error();
           }
         } else if (impl_->ast.yield == YieldKind::EdgeId) {
-          auto emitted = emit_edge(edge.id, key);
+          auto emitted = emit_edge(edge.id, key, next_cost);
           if (!emitted) {
             return emitted.error();
           }
         } else {
-          auto emitted = emit_node(edge.to, key);
+          auto emitted = emit_node(edge.to, key, next_cost);
           if (!emitted) {
             return emitted.error();
           }
@@ -469,9 +517,29 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
         if (queue.size() >= limits.frontier_limit) {
           return make_error(ErrorCode::ResourceLimit, "path frontier limit exceeded", "query");
         }
-        queue.push_back(Frontier{edge.to, std::move(next_path), current.hops + 1U});
+        queue.push_back(Frontier{edge.to, std::move(next_path), current.hops + 1U, next_cost});
       }
     }
+  }
+  if (impl_->ast.cost_property) {
+    std::vector<std::size_t> order(rows.size());
+    std::iota(order.begin(), order.end(), 0U);
+    std::sort(order.begin(), order.end(), [&](std::size_t lhs, std::size_t rhs) {
+      if (row_costs[lhs] != row_costs[rhs]) {
+        return row_costs[lhs] < row_costs[rhs];
+      }
+      return continuation_keys[lhs] < continuation_keys[rhs];
+    });
+    std::vector<QueryRow> sorted_rows;
+    std::vector<std::string> sorted_keys;
+    sorted_rows.reserve(rows.size());
+    sorted_keys.reserve(continuation_keys.size());
+    for (const auto index : order) {
+      sorted_rows.push_back(std::move(rows[index]));
+      sorted_keys.push_back(std::move(continuation_keys[index]));
+    }
+    rows = std::move(sorted_rows);
+    continuation_keys = std::move(sorted_keys);
   }
   return ResultCursor{std::move(rows), std::move(continuation_keys)};
 }
@@ -495,6 +563,9 @@ ExplainPlan PreparedQuery::explain() const {
     plan.operators.push_back("adjacency-expand-out(type=" + impl_->ast.edge_type + ")");
   } else if (impl_->ast.mode == Mode::Path) {
     plan.operators.push_back("bounded-bfs-out(type=" + impl_->ast.edge_type + ")");
+    if (impl_->ast.cost_property) {
+      plan.operators.push_back("cost-order(" + *impl_->ast.cost_property + ")");
+    }
   }
   plan.operators.push_back("temporal-filter(commit+valid-time)");
   plan.operators.push_back("project");
@@ -517,6 +588,9 @@ Result<PreparedQuery> prepare_query(std::string_view query, Limits limits) {
   fingerprint << "from=" << impl->ast.source_label << ";mode=" << static_cast<int>(impl->ast.mode)
               << ";edge=" << impl->ast.edge_type << ";yield="
               << static_cast<int>(impl->ast.yield) << ";hops=" << impl->ast.path_hops;
+  if (impl->ast.cost_property) {
+    fingerprint << ";cost=" << *impl->ast.cost_property;
+  }
   if (impl->ast.where) {
     fingerprint << ";where=" << impl->ast.where->key << "="
                 << canonical_value(impl->ast.where->value);
