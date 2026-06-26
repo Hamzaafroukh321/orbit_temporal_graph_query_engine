@@ -10,7 +10,7 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through ORB-034 are implemented and manually verified in the working tree. ORB-034 is pending commit hash assignment.
+ORB-001 through ORB-034 are implemented and manually verified through `ab2786f`.
 
 ## Next Actionable Ticket
 
@@ -83,7 +83,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`12ae6f1` (`fuzz(core): make smoke harnesses byte driven`) has passed manual MSVC build/test/fuzz verification. ORB-034 is verified in the working tree and awaiting commit.
+`ab2786f` (`test(fault): add fault matrix smoke coverage`) has passed manual MSVC build/test/fault/fuzz verification.
 
 ## Timestamp
 
