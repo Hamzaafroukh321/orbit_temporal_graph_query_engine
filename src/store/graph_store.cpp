@@ -56,6 +56,42 @@ std::string property_index_key(std::string_view key, const PropertyValue& value)
   return joined;
 }
 
+template <class View, class IdFn>
+std::vector<View> select_active_at(std::vector<View> candidates, std::int64_t valid_time,
+                                   IdFn id_of) {
+  struct Entry {
+    Interval interval;
+    std::uint64_t stable_id{0};
+    std::size_t index{0};
+  };
+
+  std::vector<Entry> interval_index;
+  interval_index.reserve(candidates.size());
+  for (std::size_t i = 0; i < candidates.size(); ++i) {
+    interval_index.push_back(Entry{candidates[i].interval, id_of(candidates[i]), i});
+  }
+  std::sort(interval_index.begin(), interval_index.end(), [](const Entry& lhs, const Entry& rhs) {
+    if (lhs.interval.start != rhs.interval.start) {
+      return lhs.interval.start < rhs.interval.start;
+    }
+    if (lhs.interval.end != rhs.interval.end) {
+      return lhs.interval.end < rhs.interval.end;
+    }
+    return lhs.stable_id < rhs.stable_id;
+  });
+
+  std::vector<View> active;
+  for (const auto& entry : interval_index) {
+    if (entry.interval.start > valid_time) {
+      break;
+    }
+    if (entry.interval.contains(valid_time)) {
+      active.push_back(candidates[entry.index]);
+    }
+  }
+  return active;
+}
+
 }  // namespace
 
 struct GraphSnapshot::Impl {
@@ -178,26 +214,35 @@ struct GraphStore::Impl : std::enable_shared_from_this<GraphStore::Impl> {
     snapshot->commit = commit;
     snapshot->valid_time = selector.valid_time;
 
-    std::set<NodeId> active_nodes;
+    std::vector<NodeVersionView> commit_visible_nodes;
     for (const auto& [id, history] : nodes) {
       (void)history;
       const auto* record = latest_at(nodes, id, commit);
-      if (record != nullptr && !record->tombstone &&
-          record->view.interval.contains(selector.valid_time)) {
-        snapshot->nodes.push_back(record->view);
-        active_nodes.insert(id);
+      if (record != nullptr && !record->tombstone) {
+        commit_visible_nodes.push_back(record->view);
       }
     }
+    snapshot->nodes = select_active_at(std::move(commit_visible_nodes), selector.valid_time,
+                                       [](const NodeVersionView& node) { return node.id.value; });
 
+    std::set<NodeId> active_nodes;
+    for (const auto& node : snapshot->nodes) {
+      active_nodes.insert(node.id);
+    }
+
+    std::vector<EdgeVersionView> commit_visible_edges;
     for (const auto& [id, history] : edges) {
       (void)history;
       const auto* record = latest_at(edges, id, commit);
-      if (record == nullptr || record->tombstone ||
-          !record->view.interval.contains(selector.valid_time)) {
-        continue;
+      if (record != nullptr && !record->tombstone) {
+        commit_visible_edges.push_back(record->view);
       }
-      if (active_nodes.contains(record->view.from) && active_nodes.contains(record->view.to)) {
-        snapshot->edges.push_back(record->view);
+    }
+    auto active_edges = select_active_at(std::move(commit_visible_edges), selector.valid_time,
+                                         [](const EdgeVersionView& edge) { return edge.id.value; });
+    for (const auto& edge : active_edges) {
+      if (active_nodes.contains(edge.from) && active_nodes.contains(edge.to)) {
+        snapshot->edges.push_back(edge);
       }
     }
 

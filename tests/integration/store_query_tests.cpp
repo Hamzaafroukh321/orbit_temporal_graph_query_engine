@@ -329,3 +329,46 @@ ORBIT_TEST(PropertyIndexedQueryStillFiltersLabel) {
   REQUIRE(rows.size() == 1);
   REQUIRE(std::get<std::int64_t>(rows[0].values[0]) == 1);
 }
+
+ORBIT_TEST(TemporalIntervalSelectionHandlesStartEndAndFutureStarts) {
+  auto store = sample_store("temporal_interval_index_nodes");
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{1}, "Window", orbit::Interval{10, 20}));
+  REQUIRE(txn.value().put_node(orbit::NodeId{2}, "Window", orbit::Interval{20, 30}));
+  REQUIRE(txn.value().put_node(orbit::NodeId{3}, "Window", orbit::Interval{40, 50}));
+  REQUIRE(txn.value().commit());
+
+  auto at_start = store.snapshot(orbit::SnapshotSelector{std::nullopt, 10});
+  auto at_boundary = store.snapshot(orbit::SnapshotSelector{std::nullopt, 20});
+  auto before_future = store.snapshot(orbit::SnapshotSelector{std::nullopt, 35});
+  REQUIRE(at_start);
+  REQUIRE(at_boundary);
+  REQUIRE(before_future);
+  REQUIRE(at_start.value().nodes_with_label("Window").size() == 1);
+  REQUIRE(at_start.value().nodes_with_label("Window")[0].id.value == 1);
+  REQUIRE(at_boundary.value().nodes_with_label("Window").size() == 1);
+  REQUIRE(at_boundary.value().nodes_with_label("Window")[0].id.value == 2);
+  REQUIRE(before_future.value().nodes_with_label("Window").empty());
+}
+
+ORBIT_TEST(TemporalEdgeIntervalFiltersIndependentlyFromEndpoints) {
+  auto store = sample_store("temporal_interval_index_edges");
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{1}, "Service", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().put_node(orbit::NodeId{2}, "Database", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().put_edge(orbit::EdgeId{1}, orbit::NodeId{1}, orbit::NodeId{2}, "DEPENDS",
+                               orbit::Interval{10, 20}));
+  REQUIRE(txn.value().commit());
+
+  auto before_edge = store.snapshot(orbit::SnapshotSelector{std::nullopt, 5});
+  auto during_edge = store.snapshot(orbit::SnapshotSelector{std::nullopt, 10});
+  auto at_edge_end = store.snapshot(orbit::SnapshotSelector{std::nullopt, 20});
+  REQUIRE(before_edge);
+  REQUIRE(during_edge);
+  REQUIRE(at_edge_end);
+  REQUIRE(before_edge.value().out_edges(orbit::NodeId{1}, "DEPENDS").empty());
+  REQUIRE(during_edge.value().out_edges(orbit::NodeId{1}, "DEPENDS").size() == 1);
+  REQUIRE(at_edge_end.value().out_edges(orbit::NodeId{1}, "DEPENDS").empty());
+}
