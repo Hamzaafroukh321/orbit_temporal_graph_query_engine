@@ -10,7 +10,7 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-033 vertical slice is implemented and manually verified. Byte-driven fuzz harness changes are pending commit.
+ORB-001 through the initial ORB-033 vertical slice is implemented and manually verified through `12ae6f1`.
 
 ## Next Actionable Ticket
 
@@ -81,7 +81,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`f9c41d2` (`feat(runtime): add cancellation and shutdown guards`) has passed manual MSVC build/test/fuzz verification. ORB-031 through ORB-033 byte-driven fuzz harness changes are manually verified and awaiting commit.
+`12ae6f1` (`fuzz(core): make smoke harnesses byte driven`) has passed manual MSVC build/test/fuzz verification.
 
 ## Timestamp
 
