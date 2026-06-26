@@ -307,6 +307,13 @@ struct PreparedQuery::Impl {
 
 ResultCursor::ResultCursor(std::vector<QueryRow> rows) : rows_(std::move(rows)) {}
 
+ResultCursor::ResultCursor(std::vector<QueryRow> rows, std::vector<std::string> continuation_keys)
+    : rows_(std::move(rows)), continuation_keys_(std::move(continuation_keys)) {
+  if (continuation_keys_.size() != rows_.size()) {
+    continuation_keys_.clear();
+  }
+}
+
 Result<std::optional<ResultBatch>> ResultCursor::next(std::size_t row_budget) {
   if (cancelled_) {
     return make_error(ErrorCode::Cancelled, "cursor is cancelled", "cursor");
@@ -323,6 +330,9 @@ Result<std::optional<ResultBatch>> ResultCursor::next(std::size_t row_budget) {
                     rows_.begin() + static_cast<std::ptrdiff_t>(offset_ + take));
   offset_ += take;
   batch.complete = offset_ >= rows_.size();
+  if (!continuation_keys_.empty() && offset_ > 0) {
+    batch.continuation_key = continuation_keys_[offset_ - 1U];
+  }
   return std::optional<ResultBatch>{std::move(batch)};
 }
 
@@ -342,25 +352,29 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
     return make_error(ErrorCode::InternalInvariant, "uninitialized prepared query", "query");
   }
   std::vector<QueryRow> rows;
-  auto emit_node = [&](NodeId id) -> Result<void> {
+  std::vector<std::string> continuation_keys;
+  auto emit_node = [&](NodeId id, std::string key) -> Result<void> {
     if (rows.size() >= limits.row_limit) {
       return make_error(ErrorCode::ResourceLimit, "query row limit exceeded", "query");
     }
     rows.push_back(QueryRow{{static_cast<std::int64_t>(id.value)}});
+    continuation_keys.push_back(std::move(key));
     return {};
   };
-  auto emit_edge = [&](EdgeId id) -> Result<void> {
+  auto emit_edge = [&](EdgeId id, std::string key) -> Result<void> {
     if (rows.size() >= limits.row_limit) {
       return make_error(ErrorCode::ResourceLimit, "query row limit exceeded", "query");
     }
     rows.push_back(QueryRow{{static_cast<std::int64_t>(id.value)}});
+    continuation_keys.push_back(std::move(key));
     return {};
   };
-  auto emit_path = [&](const std::vector<NodeId>& path) -> Result<void> {
+  auto emit_path = [&](const std::vector<NodeId>& path, std::string key) -> Result<void> {
     if (rows.size() >= limits.row_limit) {
       return make_error(ErrorCode::ResourceLimit, "query row limit exceeded", "query");
     }
     rows.push_back(QueryRow{{path_string(path)}});
+    continuation_keys.push_back(std::move(key));
     return {};
   };
 
@@ -380,12 +394,12 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
 
   if (impl_->ast.mode == Mode::Scan) {
     for (const auto& node : seeds) {
-      auto emitted = emit_node(node.id);
+      auto emitted = emit_node(node.id, "scan:" + std::to_string(node.id.value));
       if (!emitted) {
         return emitted.error();
       }
     }
-    return ResultCursor{std::move(rows)};
+    return ResultCursor{std::move(rows), std::move(continuation_keys)};
   }
 
   if (impl_->ast.mode == Mode::Step) {
@@ -394,14 +408,17 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
         if (!find_node(snapshot, edge.to)) {
           continue;
         }
-        auto emitted = impl_->ast.yield == YieldKind::EdgeId ? emit_edge(edge.id)
-                                                             : emit_node(edge.to);
+        const std::string key = "adj:" + std::to_string(seed.id.value) + ":" +
+                                std::to_string(edge.id.value) + ":" +
+                                std::to_string(edge.to.value);
+        auto emitted = impl_->ast.yield == YieldKind::EdgeId ? emit_edge(edge.id, key)
+                                                             : emit_node(edge.to, key);
         if (!emitted) {
           return emitted.error();
         }
       }
     }
-    return ResultCursor{std::move(rows)};
+    return ResultCursor{std::move(rows), std::move(continuation_keys)};
   }
 
   const std::size_t hop_bound = std::min(impl_->ast.path_hops, limits.path_hop_limit);
@@ -425,18 +442,19 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
         }
         auto next_path = current.path;
         next_path.push_back(edge.to);
+        const std::string key = "path:" + path_string(next_path);
         if (impl_->ast.yield == YieldKind::Path) {
-          auto emitted = emit_path(next_path);
+          auto emitted = emit_path(next_path, key);
           if (!emitted) {
             return emitted.error();
           }
         } else if (impl_->ast.yield == YieldKind::EdgeId) {
-          auto emitted = emit_edge(edge.id);
+          auto emitted = emit_edge(edge.id, key);
           if (!emitted) {
             return emitted.error();
           }
         } else {
-          auto emitted = emit_node(edge.to);
+          auto emitted = emit_node(edge.to, key);
           if (!emitted) {
             return emitted.error();
           }
@@ -445,7 +463,7 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
       }
     }
   }
-  return ResultCursor{std::move(rows)};
+  return ResultCursor{std::move(rows), std::move(continuation_keys)};
 }
 
 ExplainPlan PreparedQuery::explain() const {

@@ -25,6 +25,7 @@ struct QueryRow {
 
 struct ResultBatch {
   std::vector<QueryRow> rows;
+  std::optional<std::string> continuation_key;
   bool complete{false};
 };
 
@@ -32,6 +33,7 @@ class ResultCursor {
  public:
   ResultCursor() = default;
   explicit ResultCursor(std::vector<QueryRow> rows);
+  ResultCursor(std::vector<QueryRow> rows, std::vector<std::string> continuation_keys);
 
   [[nodiscard]] Result<std::optional<ResultBatch>> next(std::size_t row_budget);
   void cancel() noexcept;
@@ -39,6 +41,7 @@ class ResultCursor {
 
  private:
   std::vector<QueryRow> rows_;
+  std::vector<std::string> continuation_keys_;
   std::size_t offset_{0};
   bool cancelled_{false};
 };

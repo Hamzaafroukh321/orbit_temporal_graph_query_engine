@@ -10,11 +10,11 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-022 vertical slice is implemented and manually verified through `15ef55c`.
+ORB-001 through the initial ORB-023 vertical slice is implemented and manually verified. Continuation-key changes are pending commit.
 
 ## Next Actionable Ticket
 
-Install or expose CMake, then run the documented CMake debug/release/sanitizer builds. In parallel, continue with ORB-023 adjacency continuation keys.
+Install or expose CMake, then run the documented CMake debug/release/sanitizer builds. In parallel, continue with ORB-024 bounded BFS hardening after ORB-023 verification.
 
 ## Completed Modules
 
@@ -26,6 +26,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer b
 - OQS subset parser, explain fingerprints, scan, one-hop and bounded path execution.
 - Snapshot-local label, property, and adjacency indexes used by query execution.
 - Explicit commit-visible candidate selection followed by temporal interval selection for snapshot materialization.
+- Stable value-based continuation keys for scan, adjacency, and path result batches.
 - Manual MSVC build fallback for library, CLI, tests, and fuzz smoke executables.
 - CLI workflow for init/apply/query/explain/check/inspect.
 - Named unit/integration tests and three fuzz smoke targets.
@@ -45,7 +46,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer b
 - MSVC Build Tools were found through `C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat`.
 - `scripts\build_msvc.cmd` succeeded.
 - Manual MSVC `/std:c++20 /EHsc /W4 /WX` build succeeded for `orbit_unit_tests.exe`, `orbit.exe`, and all three fuzz smoke executables.
-- `build\manual\orbit_unit_tests.exe` passed: 43 tests, 0 failed.
+- `build\manual\orbit_unit_tests.exe` passed: 45 tests, 0 failed.
 - CLI workflow passed: `init`, `apply`, `query`, `explain`, and `check`.
 
 ## Sanitizer Status
@@ -71,7 +72,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`15ef55c` (`feat(store): add temporal interval selection pass`) has passed manual MSVC build/test/fuzz verification.
+`15ef55c` (`feat(store): add temporal interval selection pass`) has passed manual MSVC build/test/fuzz verification. ORB-023 continuation-key changes are manually verified and awaiting commit.
 
 ## Timestamp
 

@@ -41,6 +41,20 @@ std::vector<orbit::QueryRow> drain(orbit::ResultCursor cursor, std::size_t batch
   return rows;
 }
 
+std::vector<std::string> drain_keys(orbit::ResultCursor cursor, std::size_t batch) {
+  std::vector<std::string> keys;
+  while (true) {
+    auto next = cursor.next(batch);
+    REQUIRE(next);
+    if (!next.value()) {
+      break;
+    }
+    REQUIRE(next.value()->continuation_key.has_value());
+    keys.push_back(*next.value()->continuation_key);
+  }
+  return keys;
+}
+
 }  // namespace
 
 ORBIT_TEST(CreateUpdateDeleteVersionChain) {
@@ -371,4 +385,32 @@ ORBIT_TEST(TemporalEdgeIntervalFiltersIndependentlyFromEndpoints) {
   REQUIRE(before_edge.value().out_edges(orbit::NodeId{1}, "DEPENDS").empty());
   REQUIRE(during_edge.value().out_edges(orbit::NodeId{1}, "DEPENDS").size() == 1);
   REQUIRE(at_edge_end.value().out_edges(orbit::NodeId{1}, "DEPENDS").empty());
+}
+
+ORBIT_TEST(AdjacencyContinuationKeysAdvanceAtBatchBoundaries) {
+  auto store = sample_store("adjacency_continuation_keys");
+  seed_graph(store);
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  auto prepared = store.prepare("FROM Service STEP OUT DEPENDS YIELD node.id");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+  auto cursor = prepared.value().execute(snapshot.value());
+  REQUIRE(cursor);
+  auto batch = cursor.value().next(1);
+  REQUIRE(batch);
+  REQUIRE(batch.value().has_value());
+  REQUIRE(batch.value()->continuation_key == std::optional<std::string>{"adj:1:10:2"});
+}
+
+ORBIT_TEST(ContinuationKeysAreBatchSizeInvariant) {
+  auto store = sample_store("continuation_batch_invariant");
+  seed_graph(store);
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  auto prepared = store.prepare("FROM Service PATH OUT DEPENDS HOPS 2 YIELD path");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+  auto by_one = drain_keys(prepared.value().execute(snapshot.value()).value(), 1);
+  auto by_many = drain_keys(prepared.value().execute(snapshot.value()).value(), 100);
+  REQUIRE(!by_one.empty());
+  REQUIRE(by_one.back() == by_many.back());
 }
