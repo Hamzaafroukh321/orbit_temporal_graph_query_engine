@@ -42,6 +42,12 @@ The local snapshot/compaction/recovery soak smoke is:
 scripts\soak_msvc.cmd
 ```
 
+The current compatibility fixture verifier is:
+
+```bat
+scripts\compat_msvc.cmd
+```
+
 ## CLI Example
 
 ```sh

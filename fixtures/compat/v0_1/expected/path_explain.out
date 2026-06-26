@@ -1,0 +1,6 @@
+fingerprint from=Service;mode=2;edge=DEPENDS;yield=2;hops=2;cost=weight
+label-index-seek(Service)
+bounded-bfs-out(type=DEPENDS)
+cost-order(weight)
+temporal-filter(commit+valid-time)
+project

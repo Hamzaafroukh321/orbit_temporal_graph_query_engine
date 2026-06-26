@@ -37,6 +37,13 @@ Supported required record types are `TXN_BEGIN`, `NODE_VERSION`, `EDGE_VERSION`,
 
 Only contiguous groups from `TXN_BEGIN` through a checksum-valid `TXN_COMMIT` are loaded. A truncated tail is ignored and exposes the previous committed prefix. Integrity failures in a complete record reject the store.
 
+## Compatibility
+
+`fixtures/compat/v0_1` contains a small mutation/query fixture whose generated
+store is reopened and queried by `scripts\compat_msvc.cmd`.
+
 ## Pending
 
-Dual superblock publication, optional/required feature maps, segment catalogs, checkpoints, compaction maps, large blob streaming, and canonical golden fixture matrices remain pending.
+Dual superblock publication, optional/required feature maps, segment catalogs,
+checkpoints, compaction maps, large blob streaming, and full-version golden
+fixture matrices remain pending.

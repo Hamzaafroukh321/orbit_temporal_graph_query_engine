@@ -21,6 +21,13 @@ When `COST` is present on a path clause, every traversed edge must contain a fin
 
 Syntax errors include a byte source range when the failing token is known.
 
+## Compatibility
+
+The current compatibility fixture set is `fixtures/compat/v0_1`; run
+`scripts\compat_msvc.cmd` to compare CLI query and explain output with the
+checked-in expected files.
+
 ## Pending
 
-Typed parameters, richer predicates, cost-aware paths, parallel execution, explicit order clauses, and compatibility fixtures remain pending.
+Typed parameters, richer predicates, bidirectional traversal, parallel execution,
+and explicit order clauses remain pending.

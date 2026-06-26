@@ -10,11 +10,11 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through ORB-037 are implemented and manually verified through `8024fef`.
+ORB-001 through ORB-038 are implemented and manually verified in the working tree. ORB-038 is pending commit hash assignment.
 
 ## Next Actionable Ticket
 
-Install or expose CMake, then run the documented CMake debug/release/sanitizer/coverage matrix. In parallel, continue with ORB-038 compatibility fixture and documentation freeze work.
+Install or expose CMake, then run the documented CMake debug/release/sanitizer/coverage matrix. In parallel, continue with ORB-039 package/library consumer smoke work.
 
 ## Completed Modules
 
@@ -40,6 +40,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer/c
 - Coverage CMake preset and coverage instrumentation option for non-MSVC toolchains.
 - In-process benchmark target and MSVC benchmark smoke for mutation, lookup, one-hop, and path execution.
 - Snapshot/compaction/recovery soak target and MSVC soak smoke.
+- `fixtures/compat/v0_1` compatibility fixture set and MSVC compatibility verifier.
 - Manual MSVC build fallback for library, CLI, tests, and fuzz smoke executables.
 - CLI workflow for init/apply/query/explain/check/inspect.
 - Named unit/integration tests and three fuzz smoke targets.
@@ -65,6 +66,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer/c
 - `scripts\verify_msvc.cmd` passed, covering fresh manual build plus the full regression matrix.
 - `scripts\benchmark_msvc.cmd --no-build` passed and produced the local baseline in `docs/PERFORMANCE.md`.
 - `scripts\soak_msvc.cmd --no-build` passed: 25 cycles, 26 commits, 25 compaction attempts, 3 reopens, and 18 held-snapshot checks.
+- `scripts\compat_msvc.cmd --no-build` passed against `fixtures\compat\v0_1`.
 - `scripts\verify_cmake_matrix.cmd` exits 20 in this environment because `cmake` is not on `PATH`.
 - CLI workflow passed: `init`, `apply`, `query`, `explain`, and `check`.
 
@@ -92,7 +94,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`8024fef` (`test: add snapshot compaction recovery soak`) has passed manual MSVC build/test/regression/fault/fuzz/benchmark/soak verification.
+`8024fef` (`test: add snapshot compaction recovery soak`) has passed manual MSVC build/test/regression/fault/fuzz/benchmark/soak verification. ORB-038 is verified in the working tree and awaiting commit.
 
 ## Timestamp
 
