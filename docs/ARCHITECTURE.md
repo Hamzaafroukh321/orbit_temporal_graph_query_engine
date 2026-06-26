@@ -11,7 +11,7 @@
 
 ## Ownership
 
-`GraphStore` owns durable path state and in-memory version maps. `Transaction` is uniquely owned and writer-confined. `GraphSnapshot` is an immutable shared materialization of one commit/time selector. `PreparedQuery` is immutable and shared. `ResultCursor` is uniquely owned by one consumer.
+`GraphStore` owns durable path state, in-memory version maps, and a generation lease registry. `Transaction` is uniquely owned and writer-confined. `GraphSnapshot` is an immutable shared materialization of one commit/time selector and pins its index generation until the final shared snapshot implementation is released. `PreparedQuery` is immutable and shared. `ResultCursor` is uniquely owned by one consumer.
 
 ## State Machines
 
@@ -19,7 +19,7 @@ Transactions move from open to committed or aborted. A failed commit leaves the 
 
 ## Locking
 
-The current implementation uses one store mutex around transaction publication and snapshot materialization. It does not yet implement the full lock hierarchy for background builders, cache shards, or compaction workers.
+The current implementation uses one store mutex around transaction publication and snapshot materialization plus a separate lease-registry mutex for generation pin accounting. It does not yet implement the full lock hierarchy for background builders, cache shards, or compaction workers.
 
 ## Invariants
 
@@ -31,6 +31,7 @@ The current implementation uses one store mutex around transaction publication a
 - Edges only appear in snapshots when the edge and both endpoints are active at the selected valid time.
 - Snapshot indexes are rebuilt from canonical materialized vectors, so indexed query output remains scan-equivalent and stable.
 - Snapshot indexes declare a generation and commit coverage boundary; synchronous snapshot-local indexes cover exactly the snapshot commit.
+- Cache eviction removes only unpinned generations older than the latest registered generation.
 - Result batches carry value-based continuation keys derived from node IDs, edge IDs, and path IDs rather than raw iterators.
 - Path execution rejects hop/frontier limits explicitly and prevents repeated nodes within a path.
 - Cost-aware path mode accepts a numeric nonnegative edge property and orders materialized bounded paths by cumulative cost with continuation-key ties.

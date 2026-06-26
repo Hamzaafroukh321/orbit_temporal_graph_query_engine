@@ -538,3 +538,50 @@ ORBIT_TEST(HeldSnapshotKeepsOldIndexCoverageAfterNewCommit) {
   REQUIRE(held.value().index_coverage().covers(orbit::CommitSeq{1}));
   REQUIRE(!held.value().index_coverage().covers(orbit::CommitSeq{2}));
 }
+
+ORBIT_TEST(SnapshotPinsIndexGenerationUntilRelease) {
+  auto store = sample_store("snapshot_pin_stats");
+  seed_graph(store);
+  {
+    auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+    REQUIRE(snapshot);
+    auto stats = store.cache_stats();
+    REQUIRE(stats.pinned_generations == 1);
+    REQUIRE(stats.total_pins == 1);
+  }
+  auto stats = store.cache_stats();
+  REQUIRE(stats.pinned_generations == 0);
+  REQUIRE(stats.total_pins == 0);
+}
+
+ORBIT_TEST(EvictionSkipsPinnedIndexGeneration) {
+  auto store = sample_store("snapshot_eviction_pinned");
+  seed_graph(store);
+  auto held = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  REQUIRE(held);
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{99}, "Service", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().commit());
+  auto evicted = store.evict_unpinned_indexes();
+  REQUIRE(evicted);
+  REQUIRE(evicted.value() == 0);
+  REQUIRE(store.cache_stats().pinned_generations == 1);
+}
+
+ORBIT_TEST(EvictionRemovesReleasedOldGeneration) {
+  auto store = sample_store("snapshot_eviction_released");
+  seed_graph(store);
+  {
+    auto held = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+    REQUIRE(held);
+  }
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{99}, "Service", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().commit());
+  auto evicted = store.evict_unpinned_indexes();
+  REQUIRE(evicted);
+  REQUIRE(evicted.value() == 1);
+  REQUIRE(store.cache_stats().pinned_generations == 0);
+}

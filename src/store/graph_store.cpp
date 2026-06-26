@@ -95,11 +95,71 @@ std::vector<View> select_active_at(std::vector<View> candidates, std::int64_t va
 }  // namespace
 
 struct GraphSnapshot::Impl {
+  struct LeaseRegistry {
+    mutable std::mutex mutex;
+    std::map<std::uint64_t, std::size_t> pins;
+    std::set<std::uint64_t> known_generations;
+    std::uint64_t latest_generation{1};
+
+    void register_generation(std::uint64_t generation) {
+      std::lock_guard<std::mutex> lock(mutex);
+      latest_generation = std::max(latest_generation, generation);
+      known_generations.insert(generation);
+    }
+
+    void pin(std::uint64_t generation) {
+      std::lock_guard<std::mutex> lock(mutex);
+      latest_generation = std::max(latest_generation, generation);
+      known_generations.insert(generation);
+      ++pins[generation];
+    }
+
+    void unpin(std::uint64_t generation) noexcept {
+      std::lock_guard<std::mutex> lock(mutex);
+      const auto found = pins.find(generation);
+      if (found == pins.end()) {
+        return;
+      }
+      if (found->second <= 1U) {
+        pins.erase(found);
+      } else {
+        --found->second;
+      }
+    }
+
+    CacheStats stats() const {
+      std::lock_guard<std::mutex> lock(mutex);
+      CacheStats result;
+      result.known_generations = known_generations.size();
+      result.pinned_generations = pins.size();
+      for (const auto& [generation, count] : pins) {
+        (void)generation;
+        result.total_pins += count;
+      }
+      return result;
+    }
+
+    std::size_t evict_unpinned() {
+      std::lock_guard<std::mutex> lock(mutex);
+      std::size_t evicted = 0;
+      for (auto it = known_generations.begin(); it != known_generations.end();) {
+        if (*it < latest_generation && !pins.contains(*it)) {
+          it = known_generations.erase(it);
+          ++evicted;
+        } else {
+          ++it;
+        }
+      }
+      return evicted;
+    }
+  };
+
   CommitSeq commit;
   std::int64_t valid_time{0};
   std::vector<NodeVersionView> nodes;
   std::vector<EdgeVersionView> edges;
   IndexCoverage index_coverage;
+  std::shared_ptr<LeaseRegistry> leases;
   std::map<std::string, std::vector<std::size_t>> label_index;
   std::map<std::string, std::vector<std::size_t>> property_index;
   std::map<NodeId, std::map<std::string, std::vector<std::size_t>>> out_adjacency;
@@ -116,6 +176,12 @@ struct GraphSnapshot::Impl {
     }
     for (std::size_t i = 0; i < edges.size(); ++i) {
       out_adjacency[edges[i].from][edges[i].type].push_back(i);
+    }
+  }
+
+  ~Impl() {
+    if (leases) {
+      leases->unpin(index_coverage.generation);
     }
   }
 };
@@ -205,6 +271,8 @@ struct GraphStore::Impl : std::enable_shared_from_this<GraphStore::Impl> {
   Limits limits;
   mutable std::mutex mutex;
   CommitSeq latest{};
+  std::shared_ptr<GraphSnapshot::Impl::LeaseRegistry> leases{
+      std::make_shared<GraphSnapshot::Impl::LeaseRegistry>()};
   VersionMap<NodeId, NodeRecord> nodes;
   VersionMap<EdgeId, EdgeRecord> edges;
 
@@ -220,6 +288,8 @@ struct GraphStore::Impl : std::enable_shared_from_this<GraphStore::Impl> {
     snapshot->valid_time = selector.valid_time;
     snapshot->index_coverage =
         IndexCoverage{commit.value == 0 ? std::uint64_t{1} : commit.value, commit};
+    snapshot->leases = leases;
+    leases->pin(snapshot->index_coverage.generation);
 
     std::vector<NodeVersionView> commit_visible_nodes;
     for (const auto& [id, history] : nodes) {
@@ -267,6 +337,7 @@ struct GraphStore::Impl : std::enable_shared_from_this<GraphStore::Impl> {
       return image.error();
     }
     latest = image.value().latest_commit;
+    leases->register_generation(latest.value == 0 ? std::uint64_t{1} : latest.value);
     for (const auto& node : image.value().node_versions) {
       nodes[node.id].push_back(NodeRecord{node, false});
     }
@@ -477,6 +548,7 @@ Result<CommitSeq> Transaction::commit() {
                    true});
   }
   store.latest = commit;
+  store.leases->register_generation(commit.value);
   impl_->closed = true;
   return commit;
 }
@@ -535,6 +607,20 @@ CommitSeq GraphStore::latest_commit() const {
   }
   std::lock_guard<std::mutex> lock(impl_->mutex);
   return impl_->latest;
+}
+
+CacheStats GraphStore::cache_stats() const {
+  if (!impl_) {
+    return {};
+  }
+  return impl_->leases->stats();
+}
+
+Result<std::size_t> GraphStore::evict_unpinned_indexes() {
+  if (!impl_) {
+    return make_error(ErrorCode::InternalInvariant, "uninitialized store", "store");
+  }
+  return impl_->leases->evict_unpinned();
 }
 
 Result<void> GraphStore::check() const {

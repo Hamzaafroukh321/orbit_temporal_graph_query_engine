@@ -49,6 +49,12 @@ struct IndexCoverage {
   }
 };
 
+struct CacheStats {
+  std::size_t known_generations{0};
+  std::size_t pinned_generations{0};
+  std::size_t total_pins{0};
+};
+
 class GraphSnapshot {
  public:
   struct Impl;
@@ -113,6 +119,8 @@ class GraphStore {
   [[nodiscard]] Result<GraphSnapshot> snapshot(SnapshotSelector selector = {}) const;
   [[nodiscard]] Result<PreparedQuery> prepare(std::string_view query) const;
   [[nodiscard]] CommitSeq latest_commit() const;
+  [[nodiscard]] CacheStats cache_stats() const;
+  [[nodiscard]] Result<std::size_t> evict_unpinned_indexes();
   [[nodiscard]] Result<void> check() const;
   [[nodiscard]] std::string inspect() const;
 
