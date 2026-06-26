@@ -10,7 +10,7 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-024 vertical slice is implemented and manually verified. Path hardening changes are pending commit.
+ORB-001 through the initial ORB-024 vertical slice is implemented and manually verified through `111c9e7`.
 
 ## Next Actionable Ticket
 
@@ -73,7 +73,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`2bfb802` (`feat(query): add stable continuation keys`) has passed manual MSVC build/test/fuzz verification. ORB-024 path hardening changes are manually verified and awaiting commit.
+`111c9e7` (`feat(query): harden bounded path traversal`) has passed manual MSVC build/test/fuzz verification.
 
 ## Timestamp
 
