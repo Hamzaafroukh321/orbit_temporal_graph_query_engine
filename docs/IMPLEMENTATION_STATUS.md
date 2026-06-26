@@ -10,7 +10,7 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-022 vertical slice is implemented and manually verified. Temporal interval selection changes are pending commit.
+ORB-001 through the initial ORB-022 vertical slice is implemented and manually verified through `15ef55c`.
 
 ## Next Actionable Ticket
 
@@ -71,7 +71,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`967b7a3` (`fix(format): reject invalid records before append`) has passed manual MSVC build/test/fuzz/CLI verification. ORB-022 temporal interval selection is manually verified and awaiting commit.
+`15ef55c` (`feat(store): add temporal interval selection pass`) has passed manual MSVC build/test/fuzz verification.
 
 ## Timestamp
 
