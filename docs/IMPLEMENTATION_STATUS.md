@@ -10,7 +10,7 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-020 vertical slice have source implementation and tests in the working tree, but they are not verified by a compiler in this environment.
+ORB-001 through the initial ORB-020 vertical slice are committed in `ae67488`, but they are not verified by a compiler in this environment.
 
 ## Next Actionable Ticket
 
@@ -65,7 +65,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-No commits exist yet at this update point.
+`ae67488` (`feat(orbit): establish temporal graph engine vertical slice`) has passed `git diff --cached --check`; executable build/test verification is blocked by missing local toolchain.
 
 ## Timestamp
 
