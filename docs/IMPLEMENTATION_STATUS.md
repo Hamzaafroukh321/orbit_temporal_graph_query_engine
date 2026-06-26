@@ -10,11 +10,11 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-030 vertical slice is implemented and manually verified through `f9c41d2`.
+ORB-001 through the initial ORB-033 vertical slice is implemented and manually verified. Byte-driven fuzz harness changes are pending commit.
 
 ## Next Actionable Ticket
 
-Install or expose CMake, then run the documented CMake debug/release/sanitizer builds. In parallel, continue with ORB-031 OGR parser/recovery fuzzer after ORB-030 verification.
+Install or expose CMake, then run the documented CMake debug/release/sanitizer builds. In parallel, continue with ORB-034 allocation/I/O/cancel fault matrices.
 
 ## Completed Modules
 
@@ -34,6 +34,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer b
 - Keep-last-commit compaction retention planner with pin-aware publishability reports.
 - Compaction publish/retire API that rejects pinned source generations and retires unpinned older index generations.
 - Cancellation token, query work budget enforcement, and store shutdown rejection for new work.
+- Byte-driven OGR parser/recovery, graph sequence, and query pipeline fuzz smoke harnesses.
 - Manual MSVC build fallback for library, CLI, tests, and fuzz smoke executables.
 - CLI workflow for init/apply/query/explain/check/inspect.
 - Named unit/integration tests and three fuzz smoke targets.
@@ -62,7 +63,7 @@ ASan/UBSan and TSan presets exist, but sanitizer runs have not completed because
 
 ## Fuzz Status
 
-Three production-linked fuzz smoke targets exist in `fuzz/`. All three build with the manual MSVC fallback and run successfully against `corpus`.
+Three production-linked byte-driven fuzz smoke targets exist in `fuzz/`. All three build with the manual MSVC fallback and run successfully against `corpus`.
 
 ## Documentation Status
 
@@ -80,7 +81,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`f9c41d2` (`feat(runtime): add cancellation and shutdown guards`) has passed manual MSVC build/test/fuzz verification.
+`f9c41d2` (`feat(runtime): add cancellation and shutdown guards`) has passed manual MSVC build/test/fuzz verification. ORB-031 through ORB-033 byte-driven fuzz harness changes are manually verified and awaiting commit.
 
 ## Timestamp
 
