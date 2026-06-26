@@ -10,7 +10,7 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through ORB-036 are implemented and manually verified in the working tree. ORB-036 is pending commit hash assignment.
+ORB-001 through ORB-036 are implemented and manually verified through `b20dd73`.
 
 ## Next Actionable Ticket
 
@@ -90,7 +90,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`17b03e4` (`build: add regression verification automation`) has passed manual MSVC build/test/regression/fault/fuzz verification. ORB-036 is verified in the working tree and awaiting commit.
+`b20dd73` (`perf: add benchmark smoke automation`) has passed manual MSVC build/test/regression/fault/fuzz/benchmark verification.
 
 ## Timestamp
 
