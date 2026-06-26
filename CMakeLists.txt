@@ -63,6 +63,11 @@ if(ORBIT_BUILD_TOOLS)
   target_link_libraries(orbit_benchmark PRIVATE orbit::orbit)
   orbit_set_warnings(orbit_benchmark)
   orbit_enable_sanitizers(orbit_benchmark)
+
+  add_executable(orbit_soak tools/orbit_soak.cpp)
+  target_link_libraries(orbit_soak PRIVATE orbit::orbit)
+  orbit_set_warnings(orbit_soak)
+  orbit_enable_sanitizers(orbit_soak)
 endif()
 
 install(TARGETS orbit orbit_cli EXPORT orbitTargets)

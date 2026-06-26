@@ -16,3 +16,4 @@ cl %COMMON% %LIBSRC% fuzz\fuzz_ogr_parser.cpp /Febuild\manual\orbit_ogr_parser_f
 cl %COMMON% %LIBSRC% fuzz\fuzz_graph_sequence.cpp /Febuild\manual\orbit_graph_sequence_fuzz.exe || exit /b 1
 cl %COMMON% %LIBSRC% fuzz\fuzz_query_pipeline.cpp /Febuild\manual\orbit_query_pipeline_fuzz.exe || exit /b 1
 cl %COMMON% %LIBSRC% tools\orbit_benchmark.cpp /Febuild\manual\orbit_benchmark.exe || exit /b 1
+cl %COMMON% %LIBSRC% tools\orbit_soak.cpp /Febuild\manual\orbit_soak.exe || exit /b 1

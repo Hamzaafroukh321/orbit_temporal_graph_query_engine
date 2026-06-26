@@ -10,11 +10,11 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through ORB-036 are implemented and manually verified through `b20dd73`.
+ORB-001 through ORB-037 are implemented and manually verified in the working tree. ORB-037 is pending commit hash assignment.
 
 ## Next Actionable Ticket
 
-Install or expose CMake, then run the documented CMake debug/release/sanitizer/coverage matrix. In parallel, continue with ORB-037 long snapshot/compaction/recovery soak automation.
+Install or expose CMake, then run the documented CMake debug/release/sanitizer/coverage matrix. In parallel, continue with ORB-038 compatibility fixture and documentation freeze work.
 
 ## Completed Modules
 
@@ -39,6 +39,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer/c
 - Regression, CLI smoke, MSVC verification, and CMake sanitizer/coverage matrix scripts.
 - Coverage CMake preset and coverage instrumentation option for non-MSVC toolchains.
 - In-process benchmark target and MSVC benchmark smoke for mutation, lookup, one-hop, and path execution.
+- Snapshot/compaction/recovery soak target and MSVC soak smoke.
 - Manual MSVC build fallback for library, CLI, tests, and fuzz smoke executables.
 - CLI workflow for init/apply/query/explain/check/inspect.
 - Named unit/integration tests and three fuzz smoke targets.
@@ -63,6 +64,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer/c
 - `scripts\run_regression_matrix.cmd --no-build` passed, covering unit tests, fuzz smokes, CLI smoke, and fault matrix smoke.
 - `scripts\verify_msvc.cmd` passed, covering fresh manual build plus the full regression matrix.
 - `scripts\benchmark_msvc.cmd --no-build` passed and produced the local baseline in `docs/PERFORMANCE.md`.
+- `scripts\soak_msvc.cmd --no-build` passed: 25 cycles, 26 commits, 25 compaction attempts, 3 reopens, and 18 held-snapshot checks.
 - `scripts\verify_cmake_matrix.cmd` exits 20 in this environment because `cmake` is not on `PATH`.
 - CLI workflow passed: `init`, `apply`, `query`, `explain`, and `check`.
 
@@ -90,7 +92,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`b20dd73` (`perf: add benchmark smoke automation`) has passed manual MSVC build/test/regression/fault/fuzz/benchmark verification.
+`b20dd73` (`perf: add benchmark smoke automation`) has passed manual MSVC build/test/regression/fault/fuzz/benchmark verification. ORB-037 is verified in the working tree and awaiting commit.
 
 ## Timestamp
 

@@ -36,6 +36,12 @@ The local benchmark smoke is:
 scripts\benchmark_msvc.cmd
 ```
 
+The local snapshot/compaction/recovery soak smoke is:
+
+```bat
+scripts\soak_msvc.cmd
+```
+
 ## CLI Example
 
 ```sh

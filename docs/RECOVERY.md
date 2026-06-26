@@ -9,3 +9,22 @@ Current recovery behavior is intentionally conservative:
 - Complete records with checksum or semantic integrity errors reject open/check.
 
 Pending full-version recovery work includes dual superblocks, checkpoints, fsync boundary fault injection, torn-write matrices, compaction candidate validation, durable catalog publication, and idempotent salvage tooling.
+
+## Soak Smoke
+
+`scripts\soak_msvc.cmd` runs `orbit_soak`, which repeatedly commits edges,
+keeps selected snapshots alive, attempts compaction, reopens the store, and
+checks query row counts after each transition.
+
+The 2026-06-26 local run used 25 cycles and produced:
+
+```text
+cycles=25
+commits=26
+compaction_attempts=25
+compaction_successes=16
+compaction_blocked=9
+reopens=3
+held_snapshot_checks=18
+final_rows=25
+```
