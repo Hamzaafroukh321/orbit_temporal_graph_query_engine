@@ -279,6 +279,10 @@ bool property_matches(const NodeVersionView& node, const std::optional<Predicate
   return found != node.properties.end() && found->second == predicate->value;
 }
 
+bool label_matches(const NodeVersionView& node, std::string_view label) {
+  return node.label == label;
+}
+
 std::optional<NodeVersionView> find_node(const GraphSnapshot& snapshot, NodeId id) {
   return snapshot.node(id);
 }
@@ -361,10 +365,15 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
   };
 
   std::vector<NodeVersionView> seeds;
-  for (const auto& node : snapshot.nodes()) {
-    if (node.label == impl_->ast.source_label && property_matches(node, impl_->ast.where)) {
-      seeds.push_back(node);
-    }
+  if (impl_->ast.where) {
+    seeds = snapshot.nodes_with_property(impl_->ast.where->key, impl_->ast.where->value);
+    seeds.erase(std::remove_if(seeds.begin(), seeds.end(),
+                               [&](const NodeVersionView& node) {
+                                 return !label_matches(node, impl_->ast.source_label);
+                               }),
+                seeds.end());
+  } else {
+    seeds = snapshot.nodes_with_label(impl_->ast.source_label);
   }
   std::sort(seeds.begin(), seeds.end(),
             [](const auto& lhs, const auto& rhs) { return lhs.id < rhs.id; });
@@ -381,16 +390,14 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
 
   if (impl_->ast.mode == Mode::Step) {
     for (const auto& seed : seeds) {
-      for (const auto& edge : snapshot.edges()) {
-        if (edge.from == seed.id && edge.type == impl_->ast.edge_type) {
-          if (!find_node(snapshot, edge.to)) {
-            continue;
-          }
-          auto emitted = impl_->ast.yield == YieldKind::EdgeId ? emit_edge(edge.id)
-                                                               : emit_node(edge.to);
-          if (!emitted) {
-            return emitted.error();
-          }
+      for (const auto& edge : snapshot.out_edges(seed.id, impl_->ast.edge_type)) {
+        if (!find_node(snapshot, edge.to)) {
+          continue;
+        }
+        auto emitted = impl_->ast.yield == YieldKind::EdgeId ? emit_edge(edge.id)
+                                                             : emit_node(edge.to);
+        if (!emitted) {
+          return emitted.error();
         }
       }
     }
@@ -412,10 +419,7 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
       if (current.hops >= hop_bound) {
         continue;
       }
-      for (const auto& edge : snapshot.edges()) {
-        if (edge.from != current.node || edge.type != impl_->ast.edge_type) {
-          continue;
-        }
+      for (const auto& edge : snapshot.out_edges(current.node, impl_->ast.edge_type)) {
         if (std::find(current.path.begin(), current.path.end(), edge.to) != current.path.end()) {
           continue;
         }
@@ -450,7 +454,12 @@ ExplainPlan PreparedQuery::explain() const {
   }
   ExplainPlan plan;
   plan.fingerprint = impl_->fingerprint;
-  plan.operators.push_back("snapshot-visible-scan(label=" + impl_->ast.source_label + ")");
+  if (impl_->ast.where) {
+    plan.operators.push_back("property-index-seek(" + impl_->ast.where->key + ")");
+    plan.operators.push_back("label-filter(" + impl_->ast.source_label + ")");
+  } else {
+    plan.operators.push_back("label-index-seek(" + impl_->ast.source_label + ")");
+  }
   if (impl_->ast.where) {
     plan.operators.push_back("property-filter(" + impl_->ast.where->key + ")");
   }

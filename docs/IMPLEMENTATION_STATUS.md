@@ -14,7 +14,7 @@ ORB-001 through the initial ORB-020 vertical slice are committed in `ae67488`, b
 
 ## Next Actionable Ticket
 
-Install or expose a C++20 toolchain with CMake, then run debug/release/sanitizer builds and fix any compile or test failures. After that, continue with ORB-021 property-index acceleration and ORB-022 temporal interval index integration.
+Install or expose a C++20 toolchain with CMake, then run debug/release/sanitizer builds and fix any compile or test failures. After that, continue with ORB-022 temporal interval index integration and ORB-023 adjacency continuation keys.
 
 ## Completed Modules
 
@@ -24,6 +24,7 @@ Install or expose a C++20 toolchain with CMake, then run debug/release/sanitizer
 - OGR-1 development-subset reader/writer with transaction groups and CRC32C.
 - Single-writer transactions, immutable snapshots, reopen/check and stable commit IDs.
 - OQS subset parser, explain fingerprints, scan, one-hop and bounded path execution.
+- Snapshot-local label, property, and adjacency indexes used by query execution.
 - CLI workflow for init/apply/query/explain/check/inspect.
 - Named unit/integration tests and three fuzz smoke targets.
 
@@ -65,7 +66,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`ae67488` (`feat(orbit): establish temporal graph engine vertical slice`) has passed `git diff --cached --check`; executable build/test verification is blocked by missing local toolchain.
+`ae67488` (`feat(orbit): establish temporal graph engine vertical slice`) has passed `git diff --cached --check`; executable build/test verification is blocked by missing local toolchain. Snapshot index work is in progress after `61d5214` and awaiting commit.
 
 ## Timestamp
 

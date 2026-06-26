@@ -5,8 +5,8 @@
 - `include/orbit/error.hpp` and `src/base/error.cpp`: stable error categories and diagnostic strings.
 - `include/orbit/value.hpp` and `src/base/value.cpp`: IDs, half-open intervals, property values, limits, and checked arithmetic.
 - `include/orbit/format.hpp` and `src/format/ogr.cpp`: OGR-1-inspired superblock, framed transaction records, CRC32C checks, truncation handling, and canonical property ordering.
-- `include/orbit/store.hpp` and `src/store/graph_store.cpp`: single-writer transactions, append-only versions, immutable snapshot materialization, reopen, and validation.
-- `include/orbit/query.hpp` and `src/query/query.cpp`: OQS tokenization, parsing, explain fingerprints, scan, expand, bounded BFS path execution, and resumable result batches.
+- `include/orbit/store.hpp` and `src/store/graph_store.cpp`: single-writer transactions, append-only versions, immutable snapshot materialization, snapshot-local label/property/adjacency indexes, reopen, and validation.
+- `include/orbit/query.hpp` and `src/query/query.cpp`: OQS tokenization, parsing, explain fingerprints, indexed scan seeds, indexed adjacency expansion, bounded BFS path execution, and resumable result batches.
 - `src/cli/main.cpp`: command-line workflow over the same library APIs.
 
 ## Ownership
@@ -28,4 +28,4 @@ The current implementation uses one store mutex around transaction publication a
 - Snapshot visibility uses the newest version whose begin commit is not newer than the selector.
 - Valid-time checks are half-open: start included, end excluded.
 - Edges only appear in snapshots when the edge and both endpoints are active at the selected valid time.
-- Query output is sorted by canonical node and edge IDs from the materialized snapshot.
+- Snapshot indexes are rebuilt from canonical materialized vectors, so indexed query output remains scan-equivalent and stable.

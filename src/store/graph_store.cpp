@@ -8,6 +8,7 @@
 #include <mutex>
 #include <set>
 #include <sstream>
+#include <string_view>
 
 namespace orbit {
 namespace {
@@ -48,6 +49,13 @@ Error invalid_id(std::string entity) {
   return make_error(ErrorCode::Usage, std::move(entity) + " id must be nonzero", "store");
 }
 
+std::string property_index_key(std::string_view key, const PropertyValue& value) {
+  std::string joined(key);
+  joined.push_back('\0');
+  joined += canonical_value(value);
+  return joined;
+}
+
 }  // namespace
 
 struct GraphSnapshot::Impl {
@@ -55,6 +63,24 @@ struct GraphSnapshot::Impl {
   std::int64_t valid_time{0};
   std::vector<NodeVersionView> nodes;
   std::vector<EdgeVersionView> edges;
+  std::map<std::string, std::vector<std::size_t>> label_index;
+  std::map<std::string, std::vector<std::size_t>> property_index;
+  std::map<NodeId, std::map<std::string, std::vector<std::size_t>>> out_adjacency;
+
+  void rebuild_indexes() {
+    label_index.clear();
+    property_index.clear();
+    out_adjacency.clear();
+    for (std::size_t i = 0; i < nodes.size(); ++i) {
+      label_index[nodes[i].label].push_back(i);
+      for (const auto& [key, value] : nodes[i].properties) {
+        property_index[property_index_key(key, value)].push_back(i);
+      }
+    }
+    for (std::size_t i = 0; i < edges.size(); ++i) {
+      out_adjacency[edges[i].from][edges[i].type].push_back(i);
+    }
+  }
 };
 
 GraphSnapshot::GraphSnapshot() : impl_(std::make_shared<Impl>()) {}
@@ -84,6 +110,50 @@ std::optional<NodeVersionView> GraphSnapshot::node(NodeId id) const {
     return std::nullopt;
   }
   return *found;
+}
+
+std::vector<NodeVersionView> GraphSnapshot::nodes_with_label(std::string_view label) const {
+  std::vector<NodeVersionView> result;
+  const auto found = impl_->label_index.find(std::string(label));
+  if (found == impl_->label_index.end()) {
+    return result;
+  }
+  result.reserve(found->second.size());
+  for (const auto index : found->second) {
+    result.push_back(impl_->nodes[index]);
+  }
+  return result;
+}
+
+std::vector<NodeVersionView> GraphSnapshot::nodes_with_property(std::string_view key,
+                                                                const PropertyValue& value) const {
+  std::vector<NodeVersionView> result;
+  const auto found = impl_->property_index.find(property_index_key(key, value));
+  if (found == impl_->property_index.end()) {
+    return result;
+  }
+  result.reserve(found->second.size());
+  for (const auto index : found->second) {
+    result.push_back(impl_->nodes[index]);
+  }
+  return result;
+}
+
+std::vector<EdgeVersionView> GraphSnapshot::out_edges(NodeId from, std::string_view type) const {
+  std::vector<EdgeVersionView> result;
+  const auto from_it = impl_->out_adjacency.find(from);
+  if (from_it == impl_->out_adjacency.end()) {
+    return result;
+  }
+  const auto type_it = from_it->second.find(std::string(type));
+  if (type_it == from_it->second.end()) {
+    return result;
+  }
+  result.reserve(type_it->second.size());
+  for (const auto index : type_it->second) {
+    result.push_back(impl_->edges[index]);
+  }
+  return result;
 }
 
 struct GraphStore::Impl : std::enable_shared_from_this<GraphStore::Impl> {
@@ -135,6 +205,7 @@ struct GraphStore::Impl : std::enable_shared_from_this<GraphStore::Impl> {
               [](const auto& lhs, const auto& rhs) { return lhs.id < rhs.id; });
     std::sort(snapshot->edges.begin(), snapshot->edges.end(),
               [](const auto& lhs, const auto& rhs) { return lhs.id < rhs.id; });
+    snapshot->rebuild_indexes();
     return GraphSnapshot{snapshot};
   }
 

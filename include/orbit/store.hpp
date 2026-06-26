@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "orbit/query.hpp"
@@ -51,6 +52,11 @@ class GraphSnapshot {
   [[nodiscard]] const std::vector<NodeVersionView>& nodes() const;
   [[nodiscard]] const std::vector<EdgeVersionView>& edges() const;
   [[nodiscard]] std::optional<NodeVersionView> node(NodeId id) const;
+  [[nodiscard]] std::vector<NodeVersionView> nodes_with_label(std::string_view label) const;
+  [[nodiscard]] std::vector<NodeVersionView> nodes_with_property(std::string_view key,
+                                                                 const PropertyValue& value) const;
+  [[nodiscard]] std::vector<EdgeVersionView> out_edges(NodeId from,
+                                                       std::string_view type) const;
 
  private:
   std::shared_ptr<const Impl> impl_;

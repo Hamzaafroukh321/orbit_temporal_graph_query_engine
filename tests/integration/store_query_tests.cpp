@@ -160,6 +160,8 @@ ORBIT_TEST(IndexCoveragePlannerFallback) {
   REQUIRE(prepared);
   auto explain = prepared.value().explain();
   REQUIRE(explain.fingerprint.find("where=tier") != std::string::npos);
+  REQUIRE(std::find(explain.operators.begin(), explain.operators.end(),
+                    "property-index-seek(tier)") != explain.operators.end());
 }
 
 ORBIT_TEST(GrammarAllCoreClauses) {
@@ -278,4 +280,52 @@ ORBIT_TEST(CheckValidatesCommittedRecords) {
   auto store = sample_store("check");
   seed_graph(store);
   REQUIRE(store.check());
+}
+
+ORBIT_TEST(SnapshotLabelIndexMatchesVisibleScan) {
+  auto store = sample_store("snapshot_label_index");
+  seed_graph(store);
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  REQUIRE(snapshot);
+  auto indexed = snapshot.value().nodes_with_label("Database");
+  REQUIRE(indexed.size() == 2);
+  REQUIRE(indexed[0].id.value == 2);
+  REQUIRE(indexed[1].id.value == 3);
+}
+
+ORBIT_TEST(SnapshotPropertyIndexMatchesVisibleScan) {
+  auto store = sample_store("snapshot_property_index");
+  seed_graph(store);
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  REQUIRE(snapshot);
+  auto indexed = snapshot.value().nodes_with_property("tier", orbit::PropertyValue{std::string{"data"}});
+  REQUIRE(indexed.size() == 2);
+}
+
+ORBIT_TEST(SnapshotAdjacencyIndexMatchesVisibleEdges) {
+  auto store = sample_store("snapshot_adjacency_index");
+  seed_graph(store);
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  REQUIRE(snapshot);
+  auto edges = snapshot.value().out_edges(orbit::NodeId{1}, "DEPENDS");
+  REQUIRE(edges.size() == 1);
+  REQUIRE(edges[0].id.value == 10);
+}
+
+ORBIT_TEST(PropertyIndexedQueryStillFiltersLabel) {
+  auto store = sample_store("property_label_filter");
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{1}, "Service", orbit::Interval{0, 100},
+                               {{"tier", std::string{"shared"}}}));
+  REQUIRE(txn.value().put_node(orbit::NodeId{2}, "Database", orbit::Interval{0, 100},
+                               {{"tier", std::string{"shared"}}}));
+  REQUIRE(txn.value().commit());
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 10});
+  auto prepared = store.prepare("FROM Service WHERE tier = shared YIELD node.id");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+  auto rows = drain(prepared.value().execute(snapshot.value()).value(), 10);
+  REQUIRE(rows.size() == 1);
+  REQUIRE(std::get<std::int64_t>(rows[0].values[0]) == 1);
 }
