@@ -10,7 +10,7 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-030 vertical slice is implemented and manually verified. Cancellation/work-budget/shutdown changes are pending commit.
+ORB-001 through the initial ORB-030 vertical slice is implemented and manually verified through `f9c41d2`.
 
 ## Next Actionable Ticket
 
@@ -80,7 +80,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`e6b23a4` (`feat(compact): publish unpinned generation candidates`) has passed manual MSVC build/test/fuzz verification. ORB-030 cancellation/work-budget/shutdown changes are manually verified and awaiting commit.
+`f9c41d2` (`feat(runtime): add cancellation and shutdown guards`) has passed manual MSVC build/test/fuzz verification.
 
 ## Timestamp
 
