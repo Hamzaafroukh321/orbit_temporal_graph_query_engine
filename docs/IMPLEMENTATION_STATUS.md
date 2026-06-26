@@ -10,7 +10,7 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-023 vertical slice is implemented and manually verified. Continuation-key changes are pending commit.
+ORB-001 through the initial ORB-023 vertical slice is implemented and manually verified through `2bfb802`.
 
 ## Next Actionable Ticket
 
@@ -72,7 +72,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`15ef55c` (`feat(store): add temporal interval selection pass`) has passed manual MSVC build/test/fuzz verification. ORB-023 continuation-key changes are manually verified and awaiting commit.
+`2bfb802` (`feat(query): add stable continuation keys`) has passed manual MSVC build/test/fuzz verification.
 
 ## Timestamp
 
