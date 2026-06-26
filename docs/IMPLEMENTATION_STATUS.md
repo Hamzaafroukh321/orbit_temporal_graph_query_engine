@@ -10,7 +10,7 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through ORB-038 are implemented and manually verified in the working tree. ORB-038 is pending commit hash assignment.
+ORB-001 through ORB-038 are implemented and manually verified through `5d5ec90`.
 
 ## Next Actionable Ticket
 
@@ -94,7 +94,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`8024fef` (`test: add snapshot compaction recovery soak`) has passed manual MSVC build/test/regression/fault/fuzz/benchmark/soak verification. ORB-038 is verified in the working tree and awaiting commit.
+`5d5ec90` (`test: add v0_1 compatibility fixtures`) has passed manual MSVC build/test/regression/fault/fuzz/benchmark/soak/compatibility verification.
 
 ## Timestamp
 
