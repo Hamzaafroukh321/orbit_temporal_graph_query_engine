@@ -139,6 +139,16 @@ struct GraphSnapshot::Impl {
       return result;
     }
 
+    bool has_pinned_older_than(std::uint64_t generation) const {
+      std::lock_guard<std::mutex> lock(mutex);
+      for (const auto& [pinned_generation, count] : pins) {
+        if (count != 0 && pinned_generation < generation) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     std::size_t evict_unpinned() {
       std::lock_guard<std::mutex> lock(mutex);
       std::size_t evicted = 0;
@@ -621,6 +631,61 @@ Result<std::size_t> GraphStore::evict_unpinned_indexes() {
     return make_error(ErrorCode::InternalInvariant, "uninitialized store", "store");
   }
   return impl_->leases->evict_unpinned();
+}
+
+Result<CompactionReport> GraphStore::plan_compaction(std::size_t keep_last_commits) const {
+  if (!impl_) {
+    return make_error(ErrorCode::InternalInvariant, "uninitialized store", "store");
+  }
+  if (keep_last_commits == 0) {
+    return make_error(ErrorCode::Usage, "keep_last_commits must be positive", "store");
+  }
+  std::lock_guard<std::mutex> lock(impl_->mutex);
+  CompactionReport report;
+  report.source_latest = impl_->latest;
+  if (impl_->latest.value == 0) {
+    report.retained_from = CommitSeq{0};
+    report.retained_through = CommitSeq{0};
+    report.publishable = true;
+    return report;
+  }
+  const auto keep = static_cast<std::uint64_t>(keep_last_commits);
+  const std::uint64_t retained_from =
+      keep >= impl_->latest.value ? std::uint64_t{1} : impl_->latest.value - keep + 1U;
+  report.retained_from = CommitSeq{retained_from};
+  report.retained_through = impl_->latest;
+
+  for (const auto& [id, history] : impl_->nodes) {
+    (void)id;
+    bool retained = false;
+    for (const auto& record : history) {
+      if (record.view.begin_commit.value >= retained_from &&
+          record.view.begin_commit.value <= impl_->latest.value) {
+        retained = true;
+      }
+    }
+    if (retained) {
+      ++report.retained_nodes;
+    }
+  }
+  for (const auto& [id, history] : impl_->edges) {
+    (void)id;
+    bool retained = false;
+    for (const auto& record : history) {
+      if (record.view.begin_commit.value >= retained_from &&
+          record.view.begin_commit.value <= impl_->latest.value) {
+        retained = true;
+      }
+    }
+    if (retained) {
+      ++report.retained_edges;
+    }
+  }
+
+  const auto stats = impl_->leases->stats();
+  report.pinned_generations = stats.pinned_generations;
+  report.publishable = !impl_->leases->has_pinned_older_than(retained_from);
+  return report;
 }
 
 Result<void> GraphStore::check() const {

@@ -585,3 +585,41 @@ ORBIT_TEST(EvictionRemovesReleasedOldGeneration) {
   REQUIRE(evicted.value() == 1);
   REQUIRE(store.cache_stats().pinned_generations == 0);
 }
+
+ORBIT_TEST(CompactionRetentionPlannerKeepsRecentCommits) {
+  auto store = sample_store("compaction_retention_recent");
+  seed_graph(store);
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{99}, "Service", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().commit());
+  auto report = store.plan_compaction(1);
+  REQUIRE(report);
+  REQUIRE(report.value().source_latest.value == 2);
+  REQUIRE(report.value().retained_from.value == 2);
+  REQUIRE(report.value().retained_through.value == 2);
+  REQUIRE(report.value().retained_nodes == 1);
+  REQUIRE(report.value().publishable);
+}
+
+ORBIT_TEST(CompactionRetentionPlannerRejectsZeroWindow) {
+  auto store = sample_store("compaction_retention_zero");
+  seed_graph(store);
+  auto report = store.plan_compaction(0);
+  REQUIRE(!report);
+  REQUIRE(report.error().code == orbit::ErrorCode::Usage);
+}
+
+ORBIT_TEST(CompactionCandidateBlockedByPinnedOldGeneration) {
+  auto store = sample_store("compaction_pinned_old_generation");
+  seed_graph(store);
+  auto held = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  REQUIRE(held);
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{99}, "Service", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().commit());
+  auto report = store.plan_compaction(1);
+  REQUIRE(report);
+  REQUIRE(!report.value().publishable);
+}

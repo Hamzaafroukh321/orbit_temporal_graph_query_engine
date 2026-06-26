@@ -55,6 +55,16 @@ struct CacheStats {
   std::size_t total_pins{0};
 };
 
+struct CompactionReport {
+  CommitSeq source_latest{};
+  CommitSeq retained_from{};
+  CommitSeq retained_through{};
+  std::size_t retained_nodes{0};
+  std::size_t retained_edges{0};
+  std::size_t pinned_generations{0};
+  bool publishable{false};
+};
+
 class GraphSnapshot {
  public:
   struct Impl;
@@ -121,6 +131,7 @@ class GraphStore {
   [[nodiscard]] CommitSeq latest_commit() const;
   [[nodiscard]] CacheStats cache_stats() const;
   [[nodiscard]] Result<std::size_t> evict_unpinned_indexes();
+  [[nodiscard]] Result<CompactionReport> plan_compaction(std::size_t keep_last_commits) const;
   [[nodiscard]] Result<void> check() const;
   [[nodiscard]] std::string inspect() const;
 

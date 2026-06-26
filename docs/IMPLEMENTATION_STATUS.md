@@ -10,11 +10,11 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-027 vertical slice is implemented and manually verified through `46f202c`.
+ORB-001 through the initial ORB-028 vertical slice is implemented and manually verified. Retention planner changes are pending commit.
 
 ## Next Actionable Ticket
 
-Install or expose CMake, then run the documented CMake debug/release/sanitizer builds. In parallel, continue with ORB-028 retention planner and compaction writer after ORB-027 verification.
+Install or expose CMake, then run the documented CMake debug/release/sanitizer builds. In parallel, continue with ORB-029 compaction publish/retire behavior after ORB-028 verification.
 
 ## Completed Modules
 
@@ -31,6 +31,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer b
 - Cost-aware bounded path ordering using finite nonnegative edge properties.
 - Snapshot index coverage metadata with generation and commit coverage boundaries.
 - Generation lease registry, snapshot pins, cache stats, and unpinned index-generation eviction.
+- Keep-last-commit compaction retention planner with pin-aware publishability reports.
 - Manual MSVC build fallback for library, CLI, tests, and fuzz smoke executables.
 - CLI workflow for init/apply/query/explain/check/inspect.
 - Named unit/integration tests and three fuzz smoke targets.
@@ -50,7 +51,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer b
 - MSVC Build Tools were found through `C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat`.
 - `scripts\build_msvc.cmd` succeeded.
 - Manual MSVC `/std:c++20 /EHsc /W4 /WX` build succeeded for `orbit_unit_tests.exe`, `orbit.exe`, and all three fuzz smoke executables.
-- `build\manual\orbit_unit_tests.exe` passed: 56 tests, 0 failed.
+- `build\manual\orbit_unit_tests.exe` passed: 59 tests, 0 failed.
 - CLI workflow passed: `init`, `apply`, `query`, `explain`, and `check`.
 
 ## Sanitizer Status
@@ -76,7 +77,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`46f202c` (`feat(index): add generation lease eviction`) has passed manual MSVC build/test/fuzz verification.
+`46f202c` (`feat(index): add generation lease eviction`) has passed manual MSVC build/test/fuzz verification. ORB-028 retention planner changes are manually verified and awaiting commit.
 
 ## Timestamp
 
