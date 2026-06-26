@@ -14,7 +14,7 @@ ORB-001 through ORB-039 are implemented and manually verified through `8801e74`.
 
 ## Next Actionable Ticket
 
-Install or expose CMake, then run the documented CMake debug/release/sanitizer/coverage/install matrix. In parallel, perform a final requirement audit against Sections 20 and 21.
+Perform the final requirement audit against Sections 20 and 21, then keep any full-version gaps explicitly tracked.
 
 ## Completed Modules
 
@@ -52,14 +52,17 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer/c
 
 ## Known Blockers
 
-- CMake remains unavailable on `PATH`, so CMake presets, CTest, CMake sanitizer presets, and install/export behavior are not verified.
+- The local CMake and Ninja installations are outside the default shell `PATH`; `scripts\verify_cmake_matrix.cmd` now discovers their installed locations.
+- ASan/UBSan, TSan, and coverage presets pass under the local MSVC generator path, but MSVC does not enable the non-MSVC sanitizer/coverage instrumentation configured in `cmake/Sanitizers.cmake`.
 - Full-version implementation remains substantially incomplete; unsupported items are tracked as `Not started` or `Blocked` rather than claimed complete.
 
 ## Build And Test Status
 
-- `where.exe cmake` failed; CMake is not on `PATH`.
+- `where.exe cmake` fails in a fresh shell, but CMake 4.3.3 is installed at `C:\Program Files\CMake\bin\cmake.exe`.
+- Ninja is installed under the user WinGet package directory.
 - MSVC Build Tools were found through `C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat`.
 - `scripts\build_msvc.cmd` succeeded.
+- `scripts\verify_cmake_matrix.cmd` passed for debug, release, RelWithDebInfo, asan, tsan, coverage, fuzz, CTest, and release install/export.
 - Manual MSVC `/std:c++20 /EHsc /W4 /WX` build succeeded for `orbit_unit_tests.exe`, `orbit.exe`, and all three fuzz smoke executables.
 - `build\manual\orbit_unit_tests.exe` passed: 69 tests, 0 failed.
 - Fault matrix smoke passed through `scripts\run_fault_matrix.cmd` build/test output, plus direct successful runs of all three fuzz smoke executables.
@@ -69,12 +72,11 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer/c
 - `scripts\soak_msvc.cmd --no-build` passed: 25 cycles, 26 commits, 25 compaction attempts, 3 reopens, and 18 held-snapshot checks.
 - `scripts\compat_msvc.cmd --no-build` passed against `fixtures\compat\v0_1`.
 - `scripts\package_msvc.cmd --no-build` passed, including compilation and execution of `examples\embedded_history.cpp` against the packaged headers and `orbit.lib`.
-- `scripts\verify_cmake_matrix.cmd` exits 20 in this environment because `cmake` is not on `PATH`.
 - CLI workflow passed: `init`, `apply`, `query`, `explain`, and `check`.
 
 ## Sanitizer Status
 
-ASan/UBSan, TSan, coverage, and fuzz presets exist, and `scripts\verify_cmake_matrix.cmd` automates them. Local sanitizer and coverage runs have not completed because CMake is unavailable and MSVC sanitizer support has not been configured for this project.
+ASan/UBSan, TSan, coverage, and fuzz presets exist, and `scripts\verify_cmake_matrix.cmd` passes under MSVC. Real sanitizer and coverage instrumentation remains toolchain-dependent: the current CMake sanitizer helper intentionally returns early for MSVC, so Clang/GCC sanitizer evidence is still pending.
 
 ## Fuzz Status
 

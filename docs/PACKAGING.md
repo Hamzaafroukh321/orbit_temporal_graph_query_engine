@@ -17,8 +17,9 @@ find_package(orbit CONFIG REQUIRED)
 target_link_libraries(app PRIVATE orbit::orbit)
 ```
 
-This path is scripted by `scripts\verify_cmake_matrix.cmd`, but it remains
-blocked in the current agent environment because CMake is not on `PATH`.
+This path is scripted by `scripts\verify_cmake_matrix.cmd`; the script discovers
+the installed CMake and Ninja paths in this Windows environment and verifies the
+release install exports `orbitConfig.cmake`.
 
 ## Manual MSVC Smoke
 

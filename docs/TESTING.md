@@ -45,4 +45,6 @@ That matrix covers debug, release, RelWithDebInfo, ASan/UBSan, TSan, coverage,
 and fuzz-smoke presets. Exit code 20 means CMake is not available in the
 current shell.
 
-The current agent environment has MSVC Build Tools but still does not have `cmake` on `PATH`.
+The current agent environment has MSVC Build Tools. CMake and Ninja are installed
+outside the default shell `PATH`; `scripts\verify_cmake_matrix.cmd` adds their
+known install locations before running the preset matrix.

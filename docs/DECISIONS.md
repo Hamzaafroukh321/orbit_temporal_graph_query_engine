@@ -44,7 +44,7 @@ The CLI and tests use real durable bytes early, while full compatibility and rec
 
 ### Validation
 
-Format tests and `orbit_ogr_parser_fuzz` are present. Execution is blocked in this environment until CMake and a C++20 compiler are available.
+Format tests and `orbit_ogr_parser_fuzz` are present. Manual MSVC and CMake/Ninja verification now run in this environment.
 
 ## ADR-0003: Keep The First OQS Surface Small And Deterministic
 
@@ -67,4 +67,4 @@ The implemented language is intentionally small but exercises production store/q
 
 ### Validation
 
-Parser, explain, batch, expansion, path, and cancellation tests are present. Execution is blocked in this environment until CMake and a C++20 compiler are available.
+Parser, explain, batch, expansion, path, and cancellation tests are present. Manual MSVC and CMake/Ninja verification now run in this environment.
