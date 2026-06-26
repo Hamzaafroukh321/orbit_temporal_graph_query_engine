@@ -414,3 +414,56 @@ ORBIT_TEST(ContinuationKeysAreBatchSizeInvariant) {
   REQUIRE(!by_one.empty());
   REQUIRE(by_one.back() == by_many.back());
 }
+
+ORBIT_TEST(PathHopLimitReturnsResourceError) {
+  auto store = sample_store("path_hop_limit");
+  seed_graph(store);
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  auto prepared = store.prepare("FROM Service PATH OUT DEPENDS HOPS 2 YIELD path");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+  auto cursor = prepared.value().execute(snapshot.value(), orbit::QueryLimits{10000, 1024, 1, 10000});
+  REQUIRE(!cursor);
+  REQUIRE(cursor.error().code == orbit::ErrorCode::ResourceLimit);
+}
+
+ORBIT_TEST(PathFrontierLimitReturnsResourceError) {
+  auto store = sample_store("path_frontier_limit");
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{1}, "Service", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().put_node(orbit::NodeId{2}, "Node", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().put_node(orbit::NodeId{3}, "Node", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().put_edge(orbit::EdgeId{1}, orbit::NodeId{1}, orbit::NodeId{2}, "DEPENDS",
+                               orbit::Interval{0, 100}));
+  REQUIRE(txn.value().put_edge(orbit::EdgeId{2}, orbit::NodeId{1}, orbit::NodeId{3}, "DEPENDS",
+                               orbit::Interval{0, 100}));
+  REQUIRE(txn.value().commit());
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 10});
+  auto prepared = store.prepare("FROM Service PATH OUT DEPENDS HOPS 2 YIELD path");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+  auto cursor = prepared.value().execute(snapshot.value(), orbit::QueryLimits{10000, 1024, 32, 1});
+  REQUIRE(!cursor);
+  REQUIRE(cursor.error().code == orbit::ErrorCode::ResourceLimit);
+}
+
+ORBIT_TEST(PathCycleDoesNotRepeatSeedNode) {
+  auto store = sample_store("path_cycle_no_repeat");
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{1}, "Service", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().put_node(orbit::NodeId{2}, "Node", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().put_edge(orbit::EdgeId{1}, orbit::NodeId{1}, orbit::NodeId{2}, "DEPENDS",
+                               orbit::Interval{0, 100}));
+  REQUIRE(txn.value().put_edge(orbit::EdgeId{2}, orbit::NodeId{2}, orbit::NodeId{1}, "DEPENDS",
+                               orbit::Interval{0, 100}));
+  REQUIRE(txn.value().commit());
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 10});
+  auto prepared = store.prepare("FROM Service PATH OUT DEPENDS HOPS 3 YIELD path");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+  auto rows = drain(prepared.value().execute(snapshot.value()).value(), 10);
+  REQUIRE(rows.size() == 1);
+  REQUIRE(std::get<std::string>(rows[0].values[0]) == "1->2");
+}

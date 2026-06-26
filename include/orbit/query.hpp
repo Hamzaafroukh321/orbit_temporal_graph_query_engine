@@ -17,6 +17,7 @@ struct QueryLimits {
   std::size_t row_limit{10000};
   std::size_t batch_limit{1024};
   std::size_t path_hop_limit{32};
+  std::size_t frontier_limit{10000};
 };
 
 struct QueryRow {

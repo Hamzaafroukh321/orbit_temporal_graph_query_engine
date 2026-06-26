@@ -421,7 +421,11 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
     return ResultCursor{std::move(rows), std::move(continuation_keys)};
   }
 
-  const std::size_t hop_bound = std::min(impl_->ast.path_hops, limits.path_hop_limit);
+  if (impl_->ast.path_hops > limits.path_hop_limit) {
+    return make_error(ErrorCode::ResourceLimit, "query path hop bound exceeds execution limit",
+                      "query");
+  }
+  const std::size_t hop_bound = impl_->ast.path_hops;
   for (const auto& seed : seeds) {
     struct Frontier {
       NodeId node;
@@ -431,6 +435,9 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
     std::deque<Frontier> queue;
     queue.push_back(Frontier{seed.id, {seed.id}, 0});
     while (!queue.empty()) {
+      if (queue.size() > limits.frontier_limit) {
+        return make_error(ErrorCode::ResourceLimit, "path frontier limit exceeded", "query");
+      }
       auto current = queue.front();
       queue.pop_front();
       if (current.hops >= hop_bound) {
@@ -458,6 +465,9 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
           if (!emitted) {
             return emitted.error();
           }
+        }
+        if (queue.size() >= limits.frontier_limit) {
+          return make_error(ErrorCode::ResourceLimit, "path frontier limit exceeded", "query");
         }
         queue.push_back(Frontier{edge.to, std::move(next_path), current.hops + 1U});
       }
