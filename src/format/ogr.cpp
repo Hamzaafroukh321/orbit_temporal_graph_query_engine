@@ -111,9 +111,10 @@ Result<std::uint16_t> take_u16(const std::vector<std::uint8_t>& bytes, std::size
   if (offset + 2U > bytes.size()) {
     return make_error(ErrorCode::Format, "unexpected end of payload", "ogr");
   }
-  const auto value = static_cast<std::uint16_t>(bytes[offset]) |
-                     static_cast<std::uint16_t>(static_cast<std::uint16_t>(bytes[offset + 1U])
-                                                << 8U);
+  const std::uint16_t low = bytes[offset];
+  const std::uint16_t high = static_cast<std::uint16_t>(
+      static_cast<std::uint16_t>(bytes[offset + 1U]) << 8U);
+  const std::uint16_t value = static_cast<std::uint16_t>(low | high);
   offset += 2U;
   return value;
 }

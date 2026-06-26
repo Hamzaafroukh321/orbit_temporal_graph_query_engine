@@ -361,7 +361,11 @@ Result<CommitSeq> Transaction::commit() {
   auto& store = *impl_->store;
   std::lock_guard<std::mutex> lock(store.mutex);
   const CommitSeq parent = store.latest;
-  const CommitSeq commit{parent.value + 1U};
+  auto next_commit = checked_add(parent.value, 1U);
+  if (!next_commit) {
+    return next_commit.error();
+  }
+  const CommitSeq commit{next_commit.value()};
 
   std::set<NodeId> staged_available;
   for (const auto& [id, node] : impl_->put_nodes) {
