@@ -24,9 +24,11 @@ Sanitizer presets are available as `asan` and `tsan` where the host toolchain su
 On Windows hosts with Visual Studio Build Tools but no CMake on `PATH`, the checked fallback is:
 
 ```bat
-scripts\build_msvc.cmd
-build\manual\orbit_unit_tests.exe
+scripts\verify_msvc.cmd
 ```
+
+When CMake is available, `scripts\verify_cmake_matrix.cmd` runs the debug,
+release, RelWithDebInfo, ASan/UBSan, TSan, coverage, and fuzz-smoke presets.
 
 ## CLI Example
 

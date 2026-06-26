@@ -18,4 +18,15 @@ build/debug/orbit_query_pipeline_fuzz corpus
 
 With the manual MSVC fallback, use the corresponding executables in `build\manual\`.
 
+For the current regression gate, run:
+
+```bat
+scripts\run_regression_matrix.cmd
+```
+
+The smoke harnesses create temporary files under the supplied corpus directory.
+Generated smoke files are ignored by Git; minimized human-reviewed regression
+inputs should be added as named fixtures rather than committed from automatic
+run output.
+
 Pending work includes native libFuzzer entry points, richer original seed corpora, dictionaries, minimization workflow, and sequence comparison against an independent reference model.

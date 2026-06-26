@@ -19,17 +19,26 @@ ctest --preset debug
 When CMake is unavailable but Visual Studio Build Tools are installed, run:
 
 ```bat
-scripts\build_msvc.cmd
-build\manual\orbit_unit_tests.exe
-build\manual\orbit_ogr_parser_fuzz.exe corpus
-build\manual\orbit_graph_sequence_fuzz.exe corpus
-build\manual\orbit_query_pipeline_fuzz.exe corpus
+scripts\verify_msvc.cmd
 ```
 
-Fault matrix smoke:
+Useful narrower gates:
 
 ```bat
+scripts\build_msvc.cmd
+scripts\run_regression_matrix.cmd --no-build
+scripts\run_cli_smoke.cmd --no-build
 scripts\run_fault_matrix.cmd
 ```
+
+When CMake is available on `PATH`, run the full preset matrix:
+
+```bat
+scripts\verify_cmake_matrix.cmd
+```
+
+That matrix covers debug, release, RelWithDebInfo, ASan/UBSan, TSan, coverage,
+and fuzz-smoke presets. Exit code 20 means CMake is not available in the
+current shell.
 
 The current agent environment has MSVC Build Tools but still does not have `cmake` on `PATH`.
