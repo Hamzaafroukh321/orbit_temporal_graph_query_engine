@@ -17,3 +17,4 @@ cl %COMMON% %LIBSRC% fuzz\fuzz_graph_sequence.cpp /Febuild\manual\orbit_graph_se
 cl %COMMON% %LIBSRC% fuzz\fuzz_query_pipeline.cpp /Febuild\manual\orbit_query_pipeline_fuzz.exe || exit /b 1
 cl %COMMON% %LIBSRC% tools\orbit_benchmark.cpp /Febuild\manual\orbit_benchmark.exe || exit /b 1
 cl %COMMON% %LIBSRC% tools\orbit_soak.cpp /Febuild\manual\orbit_soak.exe || exit /b 1
+lib /OUT:build\manual\orbit.lib checked.obj error.obj value.obj ogr.obj graph_store.obj query.obj || exit /b 1

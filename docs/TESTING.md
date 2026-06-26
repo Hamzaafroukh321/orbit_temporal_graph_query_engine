@@ -32,6 +32,7 @@ scripts\run_fault_matrix.cmd
 scripts\benchmark_msvc.cmd --no-build
 scripts\soak_msvc.cmd --no-build
 scripts\compat_msvc.cmd --no-build
+scripts\package_msvc.cmd --no-build
 ```
 
 When CMake is available on `PATH`, run the full preset matrix:

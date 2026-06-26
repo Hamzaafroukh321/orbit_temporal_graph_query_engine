@@ -48,6 +48,12 @@ The current compatibility fixture verifier is:
 scripts\compat_msvc.cmd
 ```
 
+The manual package and consumer smoke is:
+
+```bat
+scripts\package_msvc.cmd
+```
+
 ## CLI Example
 
 ```sh

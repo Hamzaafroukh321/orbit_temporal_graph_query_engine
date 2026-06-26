@@ -5,6 +5,8 @@ project(orbit_temporal_graph_query_engine
   DESCRIPTION "Orbit temporal property-graph query engine"
   LANGUAGES CXX)
 
+include(CMakePackageConfigHelpers)
+
 option(ORBIT_BUILD_TESTS "Build Orbit tests" ON)
 option(ORBIT_BUILD_FUZZ "Build Orbit fuzz smoke targets" ON)
 option(ORBIT_BUILD_TOOLS "Build Orbit developer tools" ON)
@@ -70,5 +72,24 @@ if(ORBIT_BUILD_TOOLS)
   orbit_enable_sanitizers(orbit_soak)
 endif()
 
-install(TARGETS orbit orbit_cli EXPORT orbitTargets)
+install(TARGETS orbit orbit_cli EXPORT orbitTargets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin)
 install(DIRECTORY include/ DESTINATION include)
+install(EXPORT orbitTargets
+  NAMESPACE orbit::
+  DESTINATION lib/cmake/orbit)
+
+configure_package_config_file(
+  cmake/orbitConfig.cmake.in
+  "${CMAKE_CURRENT_BINARY_DIR}/orbitConfig.cmake"
+  INSTALL_DESTINATION lib/cmake/orbit)
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/orbitConfigVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY SameMajorVersion)
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/orbitConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/orbitConfigVersion.cmake"
+  DESTINATION lib/cmake/orbit)

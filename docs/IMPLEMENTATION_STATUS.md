@@ -10,11 +10,11 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through ORB-038 are implemented and manually verified through `5d5ec90`.
+ORB-001 through ORB-039 are implemented and manually verified in the working tree. ORB-039 is pending commit hash assignment.
 
 ## Next Actionable Ticket
 
-Install or expose CMake, then run the documented CMake debug/release/sanitizer/coverage matrix. In parallel, continue with ORB-039 package/library consumer smoke work.
+Install or expose CMake, then run the documented CMake debug/release/sanitizer/coverage/install matrix. In parallel, perform a final requirement audit against Sections 20 and 21.
 
 ## Completed Modules
 
@@ -41,6 +41,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer/c
 - In-process benchmark target and MSVC benchmark smoke for mutation, lookup, one-hop, and path execution.
 - Snapshot/compaction/recovery soak target and MSVC soak smoke.
 - `fixtures/compat/v0_1` compatibility fixture set and MSVC compatibility verifier.
+- CMake package export metadata plus manual MSVC package and public consumer smoke.
 - Manual MSVC build fallback for library, CLI, tests, and fuzz smoke executables.
 - CLI workflow for init/apply/query/explain/check/inspect.
 - Named unit/integration tests and three fuzz smoke targets.
@@ -67,6 +68,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer/c
 - `scripts\benchmark_msvc.cmd --no-build` passed and produced the local baseline in `docs/PERFORMANCE.md`.
 - `scripts\soak_msvc.cmd --no-build` passed: 25 cycles, 26 commits, 25 compaction attempts, 3 reopens, and 18 held-snapshot checks.
 - `scripts\compat_msvc.cmd --no-build` passed against `fixtures\compat\v0_1`.
+- `scripts\package_msvc.cmd --no-build` passed, including compilation and execution of `examples\embedded_history.cpp` against the packaged headers and `orbit.lib`.
 - `scripts\verify_cmake_matrix.cmd` exits 20 in this environment because `cmake` is not on `PATH`.
 - CLI workflow passed: `init`, `apply`, `query`, `explain`, and `check`.
 
@@ -94,7 +96,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`5d5ec90` (`test: add v0_1 compatibility fixtures`) has passed manual MSVC build/test/regression/fault/fuzz/benchmark/soak/compatibility verification.
+`5d5ec90` (`test: add v0_1 compatibility fixtures`) has passed manual MSVC build/test/regression/fault/fuzz/benchmark/soak/compatibility verification. ORB-039 is verified in the working tree and awaiting commit.
 
 ## Timestamp
 
