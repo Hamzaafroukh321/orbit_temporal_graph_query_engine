@@ -13,11 +13,22 @@ namespace orbit {
 
 class GraphSnapshot;
 
+class CancelToken {
+ public:
+  CancelToken();
+  void cancel() noexcept;
+  [[nodiscard]] bool cancelled() const noexcept;
+
+ private:
+  std::shared_ptr<bool> cancelled_;
+};
+
 struct QueryLimits {
   std::size_t row_limit{10000};
   std::size_t batch_limit{1024};
   std::size_t path_hop_limit{32};
   std::size_t frontier_limit{10000};
+  std::size_t work_limit{100000};
 };
 
 struct QueryRow {
@@ -61,6 +72,8 @@ class PreparedQuery {
 
   [[nodiscard]] Result<ResultCursor> execute(const GraphSnapshot& snapshot,
                                              QueryLimits limits = {}) const;
+  [[nodiscard]] Result<ResultCursor> execute(const GraphSnapshot& snapshot, QueryLimits limits,
+                                             const CancelToken& cancel) const;
   [[nodiscard]] ExplainPlan explain() const;
 
  private:

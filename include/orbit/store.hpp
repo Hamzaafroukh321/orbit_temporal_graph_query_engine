@@ -133,6 +133,7 @@ class GraphStore {
   [[nodiscard]] Result<std::size_t> evict_unpinned_indexes();
   [[nodiscard]] Result<CompactionReport> plan_compaction(std::size_t keep_last_commits) const;
   [[nodiscard]] Result<CompactionReport> compact(std::size_t keep_last_commits);
+  [[nodiscard]] Result<void> shutdown();
   [[nodiscard]] Result<void> check() const;
   [[nodiscard]] std::string inspect() const;
 

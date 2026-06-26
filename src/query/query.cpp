@@ -340,6 +340,16 @@ struct PreparedQuery::Impl {
   std::string fingerprint;
 };
 
+CancelToken::CancelToken() : cancelled_(std::make_shared<bool>(false)) {}
+
+void CancelToken::cancel() noexcept {
+  *cancelled_ = true;
+}
+
+bool CancelToken::cancelled() const noexcept {
+  return *cancelled_;
+}
+
 ResultCursor::ResultCursor(std::vector<QueryRow> rows) : rows_(std::move(rows)) {}
 
 ResultCursor::ResultCursor(std::vector<QueryRow> rows, std::vector<std::string> continuation_keys)
@@ -383,13 +393,33 @@ PreparedQuery::PreparedQuery() = default;
 PreparedQuery::PreparedQuery(std::shared_ptr<const Impl> impl) : impl_(std::move(impl)) {}
 
 Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, QueryLimits limits) const {
+  return execute(snapshot, limits, CancelToken{});
+}
+
+Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, QueryLimits limits,
+                                            const CancelToken& cancel) const {
   if (!impl_) {
     return make_error(ErrorCode::InternalInvariant, "uninitialized prepared query", "query");
   }
   std::vector<QueryRow> rows;
   std::vector<std::string> continuation_keys;
   std::vector<double> row_costs;
+  std::size_t work_units = 0;
+  auto poll = [&]() -> Result<void> {
+    if (cancel.cancelled()) {
+      return make_error(ErrorCode::Cancelled, "query execution cancelled", "query");
+    }
+    ++work_units;
+    if (work_units > limits.work_limit) {
+      return make_error(ErrorCode::ResourceLimit, "query work limit exceeded", "query");
+    }
+    return {};
+  };
   auto emit_node = [&](NodeId id, std::string key, double cost) -> Result<void> {
+    auto polled = poll();
+    if (!polled) {
+      return polled;
+    }
     if (rows.size() >= limits.row_limit) {
       return make_error(ErrorCode::ResourceLimit, "query row limit exceeded", "query");
     }
@@ -399,6 +429,10 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
     return {};
   };
   auto emit_edge = [&](EdgeId id, std::string key, double cost) -> Result<void> {
+    auto polled = poll();
+    if (!polled) {
+      return polled;
+    }
     if (rows.size() >= limits.row_limit) {
       return make_error(ErrorCode::ResourceLimit, "query row limit exceeded", "query");
     }
@@ -408,6 +442,10 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
     return {};
   };
   auto emit_path = [&](const std::vector<NodeId>& path, std::string key, double cost) -> Result<void> {
+    auto polled = poll();
+    if (!polled) {
+      return polled;
+    }
     if (rows.size() >= limits.row_limit) {
       return make_error(ErrorCode::ResourceLimit, "query row limit exceeded", "query");
     }
@@ -443,7 +481,15 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
 
   if (impl_->ast.mode == Mode::Step) {
     for (const auto& seed : seeds) {
+      auto polled = poll();
+      if (!polled) {
+        return polled.error();
+      }
       for (const auto& edge : snapshot.out_edges(seed.id, impl_->ast.edge_type)) {
+        polled = poll();
+        if (!polled) {
+          return polled.error();
+        }
         if (!find_node(snapshot, edge.to)) {
           continue;
         }
@@ -475,6 +521,10 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
     std::deque<Frontier> queue;
     queue.push_back(Frontier{seed.id, {seed.id}, 0});
     while (!queue.empty()) {
+      auto polled = poll();
+      if (!polled) {
+        return polled.error();
+      }
       if (queue.size() > limits.frontier_limit) {
         return make_error(ErrorCode::ResourceLimit, "path frontier limit exceeded", "query");
       }
@@ -484,6 +534,10 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
         continue;
       }
       for (const auto& edge : snapshot.out_edges(current.node, impl_->ast.edge_type)) {
+        polled = poll();
+        if (!polled) {
+          return polled.error();
+        }
         if (std::find(current.path.begin(), current.path.end(), edge.to) != current.path.end()) {
           continue;
         }

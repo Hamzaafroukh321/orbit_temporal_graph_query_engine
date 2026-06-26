@@ -657,3 +657,50 @@ ORBIT_TEST(CompactionPublishRetiresReleasedGeneration) {
   REQUIRE(after.pinned_generations == 0);
   REQUIRE(after.known_generations <= before.known_generations);
 }
+
+ORBIT_TEST(QueryExecutionHonorsPreCancelledToken) {
+  auto store = sample_store("query_pre_cancelled");
+  seed_graph(store);
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  auto prepared = store.prepare("FROM Database YIELD node.id");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+  orbit::CancelToken cancel;
+  cancel.cancel();
+  auto cursor = prepared.value().execute(snapshot.value(), orbit::QueryLimits{}, cancel);
+  REQUIRE(!cursor);
+  REQUIRE(cursor.error().code == orbit::ErrorCode::Cancelled);
+}
+
+ORBIT_TEST(QueryExecutionHonorsWorkLimit) {
+  auto store = sample_store("query_work_limit");
+  seed_graph(store);
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  auto prepared = store.prepare("FROM Service PATH OUT DEPENDS HOPS 2 YIELD path");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+  auto cursor = prepared.value().execute(snapshot.value(), orbit::QueryLimits{10000, 1024, 32, 10000, 1});
+  REQUIRE(!cursor);
+  REQUIRE(cursor.error().code == orbit::ErrorCode::ResourceLimit);
+}
+
+ORBIT_TEST(StoreShutdownRejectsNewWork) {
+  auto store = sample_store("store_shutdown_rejects");
+  seed_graph(store);
+  REQUIRE(store.shutdown());
+  REQUIRE(!store.begin());
+  REQUIRE(!store.snapshot(orbit::SnapshotSelector{std::nullopt, 25}));
+  REQUIRE(!store.prepare("FROM Service YIELD node.id"));
+  REQUIRE(!store.compact(1));
+}
+
+ORBIT_TEST(StoreShutdownRejectsOpenTransactionCommit) {
+  auto store = sample_store("store_shutdown_open_txn");
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{1}, "Service", orbit::Interval{0, 100}));
+  REQUIRE(store.shutdown());
+  auto committed = txn.value().commit();
+  REQUIRE(!committed);
+  REQUIRE(committed.error().code == orbit::ErrorCode::Cancelled);
+}

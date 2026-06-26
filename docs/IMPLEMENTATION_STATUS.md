@@ -10,11 +10,11 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-029 vertical slice is implemented and manually verified through `e6b23a4`.
+ORB-001 through the initial ORB-030 vertical slice is implemented and manually verified. Cancellation/work-budget/shutdown changes are pending commit.
 
 ## Next Actionable Ticket
 
-Install or expose CMake, then run the documented CMake debug/release/sanitizer builds. In parallel, continue with ORB-030 cancellation/work budgets and shutdown after ORB-029 verification.
+Install or expose CMake, then run the documented CMake debug/release/sanitizer builds. In parallel, continue with ORB-031 OGR parser/recovery fuzzer after ORB-030 verification.
 
 ## Completed Modules
 
@@ -33,6 +33,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer b
 - Generation lease registry, snapshot pins, cache stats, and unpinned index-generation eviction.
 - Keep-last-commit compaction retention planner with pin-aware publishability reports.
 - Compaction publish/retire API that rejects pinned source generations and retires unpinned older index generations.
+- Cancellation token, query work budget enforcement, and store shutdown rejection for new work.
 - Manual MSVC build fallback for library, CLI, tests, and fuzz smoke executables.
 - CLI workflow for init/apply/query/explain/check/inspect.
 - Named unit/integration tests and three fuzz smoke targets.
@@ -52,7 +53,7 @@ Install or expose CMake, then run the documented CMake debug/release/sanitizer b
 - MSVC Build Tools were found through `C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat`.
 - `scripts\build_msvc.cmd` succeeded.
 - Manual MSVC `/std:c++20 /EHsc /W4 /WX` build succeeded for `orbit_unit_tests.exe`, `orbit.exe`, and all three fuzz smoke executables.
-- `build\manual\orbit_unit_tests.exe` passed: 61 tests, 0 failed.
+- `build\manual\orbit_unit_tests.exe` passed: 65 tests, 0 failed.
 - CLI workflow passed: `init`, `apply`, `query`, `explain`, and `check`.
 
 ## Sanitizer Status
@@ -79,7 +80,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`e6b23a4` (`feat(compact): publish unpinned generation candidates`) has passed manual MSVC build/test/fuzz verification.
+`e6b23a4` (`feat(compact): publish unpinned generation candidates`) has passed manual MSVC build/test/fuzz verification. ORB-030 cancellation/work-budget/shutdown changes are manually verified and awaiting commit.
 
 ## Timestamp
 

@@ -281,6 +281,7 @@ struct GraphStore::Impl : std::enable_shared_from_this<GraphStore::Impl> {
   Limits limits;
   mutable std::mutex mutex;
   CommitSeq latest{};
+  bool shutting_down{false};
   std::shared_ptr<GraphSnapshot::Impl::LeaseRegistry> leases{
       std::make_shared<GraphSnapshot::Impl::LeaseRegistry>()};
   VersionMap<NodeId, NodeRecord> nodes;
@@ -493,6 +494,9 @@ Result<CommitSeq> Transaction::commit() {
   }
   auto& store = *impl_->store;
   std::lock_guard<std::mutex> lock(store.mutex);
+  if (store.shutting_down) {
+    return make_error(ErrorCode::Cancelled, "store is shutting down", "txn");
+  }
   const CommitSeq parent = store.latest;
   auto next_commit = checked_add(parent.value, 1U);
   if (!next_commit) {
@@ -594,6 +598,10 @@ Result<Transaction> GraphStore::begin() {
   if (!impl_) {
     return make_error(ErrorCode::InternalInvariant, "uninitialized store", "store");
   }
+  std::lock_guard<std::mutex> lock(impl_->mutex);
+  if (impl_->shutting_down) {
+    return make_error(ErrorCode::Cancelled, "store is shutting down", "store");
+  }
   return Transaction{std::make_unique<Transaction::Impl>(impl_)};
 }
 
@@ -601,12 +609,22 @@ Result<GraphSnapshot> GraphStore::snapshot(SnapshotSelector selector) const {
   if (!impl_) {
     return make_error(ErrorCode::InternalInvariant, "uninitialized store", "store");
   }
+  {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    if (impl_->shutting_down) {
+      return make_error(ErrorCode::Cancelled, "store is shutting down", "store");
+    }
+  }
   return impl_->make_snapshot(selector);
 }
 
 Result<PreparedQuery> GraphStore::prepare(std::string_view query) const {
   if (!impl_) {
     return make_error(ErrorCode::InternalInvariant, "uninitialized store", "store");
+  }
+  std::lock_guard<std::mutex> lock(impl_->mutex);
+  if (impl_->shutting_down) {
+    return make_error(ErrorCode::Cancelled, "store is shutting down", "store");
   }
   return prepare_query(query, impl_->limits);
 }
@@ -703,6 +721,9 @@ Result<CompactionReport> GraphStore::compact(std::size_t keep_last_commits) {
   }
   {
     std::lock_guard<std::mutex> lock(impl_->mutex);
+    if (impl_->shutting_down) {
+      return make_error(ErrorCode::Cancelled, "store is shutting down", "compact");
+    }
     std::uint64_t replacement_generation = 1;
     if (impl_->latest.value != 0) {
       auto next_generation = checked_add(impl_->latest.value, 1U);
@@ -715,6 +736,15 @@ Result<CompactionReport> GraphStore::compact(std::size_t keep_last_commits) {
   }
   (void)evict_unpinned_indexes();
   return planned.value();
+}
+
+Result<void> GraphStore::shutdown() {
+  if (!impl_) {
+    return make_error(ErrorCode::InternalInvariant, "uninitialized store", "store");
+  }
+  std::lock_guard<std::mutex> lock(impl_->mutex);
+  impl_->shutting_down = true;
+  return {};
 }
 
 Result<void> GraphStore::check() const {

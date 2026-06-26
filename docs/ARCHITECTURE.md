@@ -36,3 +36,4 @@ The current implementation uses one store mutex around transaction publication a
 - Result batches carry value-based continuation keys derived from node IDs, edge IDs, and path IDs rather than raw iterators.
 - Path execution rejects hop/frontier limits explicitly and prevents repeated nodes within a path.
 - Cost-aware path mode accepts a numeric nonnegative edge property and orders materialized bounded paths by cumulative cost with continuation-key ties.
+- Query execution polls cancellation and logical work budgets. Store shutdown rejects new transactions, snapshots, query preparation, compaction, and open transaction commits.
