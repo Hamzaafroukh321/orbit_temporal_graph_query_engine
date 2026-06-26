@@ -10,7 +10,7 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through the initial ORB-021 vertical slice are committed through `be72f83`, but they are not verified by a compiler in this environment.
+ORB-001 through the initial ORB-021 vertical slice are committed through `be72f83`, with a follow-up checked-arithmetic fix in `5349235`. The code is not verified by a compiler in this environment.
 
 ## Next Actionable Ticket
 
@@ -66,7 +66,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`be72f83` (`feat(query): add snapshot-local indexes`) has passed `git diff --cached --check`; executable build/test verification is blocked by missing local toolchain.
+`5349235` (`fix(store): check commit sequence increment`) has passed `git diff --cached --check`; executable build/test verification is blocked by missing local toolchain.
 
 ## Timestamp
 
