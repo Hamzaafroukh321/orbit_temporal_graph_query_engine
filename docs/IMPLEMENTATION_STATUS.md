@@ -98,7 +98,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`8801e74` (`build: add package consumer smoke`) has passed manual MSVC build/test/regression/fault/fuzz/benchmark/soak/compatibility/package verification.
+`bbcdb9c` (`docs: record final verification audit`) records the final audit after `scripts\verify_msvc.cmd` and `scripts\verify_cmake_matrix.cmd` passed.
 
 ## Timestamp
 
