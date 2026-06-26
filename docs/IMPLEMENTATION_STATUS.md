@@ -10,7 +10,7 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through ORB-035 are implemented and manually verified in the working tree. ORB-035 is pending commit hash assignment.
+ORB-001 through ORB-035 are implemented and manually verified through `17b03e4`.
 
 ## Next Actionable Ticket
 
@@ -88,7 +88,7 @@ No benchmark has been run. Numeric performance requirements remain unverified.
 
 ## Last Verified Commit
 
-`ab2786f` (`test(fault): add fault matrix smoke coverage`) has passed manual MSVC build/test/fault/fuzz verification. ORB-035 is verified in the working tree and awaiting commit.
+`17b03e4` (`build: add regression verification automation`) has passed manual MSVC build/test/regression/fault/fuzz verification.
 
 ## Timestamp
 
