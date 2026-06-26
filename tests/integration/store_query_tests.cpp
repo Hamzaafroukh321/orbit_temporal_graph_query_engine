@@ -623,3 +623,37 @@ ORBIT_TEST(CompactionCandidateBlockedByPinnedOldGeneration) {
   REQUIRE(report);
   REQUIRE(!report.value().publishable);
 }
+
+ORBIT_TEST(CompactionPublishRejectsPinnedGeneration) {
+  auto store = sample_store("compaction_publish_pinned");
+  seed_graph(store);
+  auto held = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  REQUIRE(held);
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{99}, "Service", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().commit());
+  auto compacted = store.compact(1);
+  REQUIRE(!compacted);
+  REQUIRE(compacted.error().code == orbit::ErrorCode::Conflict);
+}
+
+ORBIT_TEST(CompactionPublishRetiresReleasedGeneration) {
+  auto store = sample_store("compaction_publish_released");
+  seed_graph(store);
+  {
+    auto held = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+    REQUIRE(held);
+  }
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{99}, "Service", orbit::Interval{0, 100}));
+  REQUIRE(txn.value().commit());
+  auto before = store.cache_stats();
+  REQUIRE(before.known_generations >= 2);
+  auto compacted = store.compact(1);
+  REQUIRE(compacted);
+  auto after = store.cache_stats();
+  REQUIRE(after.pinned_generations == 0);
+  REQUIRE(after.known_generations <= before.known_generations);
+}

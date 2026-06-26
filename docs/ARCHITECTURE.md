@@ -32,7 +32,7 @@ The current implementation uses one store mutex around transaction publication a
 - Snapshot indexes are rebuilt from canonical materialized vectors, so indexed query output remains scan-equivalent and stable.
 - Snapshot indexes declare a generation and commit coverage boundary; synchronous snapshot-local indexes cover exactly the snapshot commit.
 - Cache eviction removes only unpinned generations older than the latest registered generation.
-- The current compaction stage plans keep-last-commit retention and reports whether a candidate is publishable under active generation pins; it does not rewrite or publish replacement storage yet.
+- The current compaction stage plans keep-last-commit retention, rejects publication under active old-generation pins, registers a replacement generation, and retires unpinned older index generations. It does not rewrite OGR bytes into replacement segment files yet.
 - Result batches carry value-based continuation keys derived from node IDs, edge IDs, and path IDs rather than raw iterators.
 - Path execution rejects hop/frontier limits explicitly and prevents repeated nodes within a path.
 - Cost-aware path mode accepts a numeric nonnegative edge property and orders materialized bounded paths by cumulative cost with continuation-key ties.

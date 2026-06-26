@@ -688,6 +688,35 @@ Result<CompactionReport> GraphStore::plan_compaction(std::size_t keep_last_commi
   return report;
 }
 
+Result<CompactionReport> GraphStore::compact(std::size_t keep_last_commits) {
+  auto planned = plan_compaction(keep_last_commits);
+  if (!planned) {
+    return planned.error();
+  }
+  if (!planned.value().publishable) {
+    return make_error(ErrorCode::Conflict,
+                      "cannot publish compaction while retained source generations are pinned",
+                      "compact");
+  }
+  if (!impl_) {
+    return make_error(ErrorCode::InternalInvariant, "uninitialized store", "store");
+  }
+  {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    std::uint64_t replacement_generation = 1;
+    if (impl_->latest.value != 0) {
+      auto next_generation = checked_add(impl_->latest.value, 1U);
+      if (!next_generation) {
+        return next_generation.error();
+      }
+      replacement_generation = next_generation.value();
+    }
+    impl_->leases->register_generation(replacement_generation);
+  }
+  (void)evict_unpinned_indexes();
+  return planned.value();
+}
+
 Result<void> GraphStore::check() const {
   if (!impl_) {
     return make_error(ErrorCode::InternalInvariant, "uninitialized store", "store");
