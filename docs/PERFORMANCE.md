@@ -12,16 +12,16 @@ key-value metrics to `build\manual\bench\benchmark.txt`.
 
 ## Local Baseline
 
-On 2026-06-26 in this agent environment, the manual MSVC debug-style fallback
+On 2026-07-02 in this agent environment, the manual MSVC debug-style fallback
 produced:
 
 | Metric | Value |
 | --- | ---: |
 | Entity versions | 2001 |
-| Mutation throughput | 16424.9 versions/s |
-| Point lookup mean | 0.777865 us |
-| One-hop traversal | 356100 rows/s |
-| Bounded path traversal | 130929 rows/s |
+| Mutation throughput | 9484.66 versions/s |
+| Point lookup mean | 1.58169 us |
+| One-hop traversal | 201792 rows/s |
+| Bounded path traversal | 67430.9 rows/s |
 
 These numbers are a smoke baseline, not final acceptance evidence. Reference
 release builds, hardware details, memory ceilings, recovery startup, compaction

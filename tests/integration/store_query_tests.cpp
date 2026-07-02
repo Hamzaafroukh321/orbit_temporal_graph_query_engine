@@ -835,6 +835,8 @@ ORBIT_TEST(CompactionRetentionPlannerKeepsRecentCommits) {
   REQUIRE(report.value().retained_from.value == 2);
   REQUIRE(report.value().retained_through.value == 2);
   REQUIRE(report.value().retained_nodes == 1);
+  REQUIRE(report.value().verified_snapshots == 0);
+  REQUIRE(!report.value().semantic_verification_passed);
   REQUIRE(report.value().publishable);
 }
 
@@ -889,9 +891,37 @@ ORBIT_TEST(CompactionPublishRetiresReleasedGeneration) {
   REQUIRE(before.known_generations >= 2);
   auto compacted = store.compact(1);
   REQUIRE(compacted);
+  REQUIRE(compacted.value().verified_snapshots > 0);
+  REQUIRE(compacted.value().verified_nodes > 0);
+  REQUIRE(compacted.value().semantic_verification_passed);
   auto after = store.cache_stats();
   REQUIRE(after.pinned_generations == 0);
   REQUIRE(after.known_generations <= before.known_generations);
+}
+
+ORBIT_TEST(CompactionSemanticVerificationCoversRetainedCommitTimes) {
+  auto store = sample_store("compaction_semantic_verification");
+  seed_graph(store);
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{99}, "Service", orbit::Interval{50, 70},
+                               {{"tier", std::string{"worker"}}}));
+  REQUIRE(txn.value().put_edge(orbit::EdgeId{12}, orbit::NodeId{1}, orbit::NodeId{99}, "DEPENDS",
+                               orbit::Interval{55, 65}));
+  REQUIRE(txn.value().commit());
+  auto compacted = store.compact(2);
+  REQUIRE(compacted);
+  REQUIRE(compacted.value().source_latest.value == 2);
+  REQUIRE(compacted.value().retained_from.value == 1);
+  REQUIRE(compacted.value().retained_through.value == 2);
+  REQUIRE(compacted.value().verified_snapshots >= 4);
+  REQUIRE(compacted.value().verified_nodes >= compacted.value().retained_nodes);
+  REQUIRE(compacted.value().verified_edges >= compacted.value().retained_edges);
+  REQUIRE(compacted.value().semantic_verification_passed);
+  auto retained = store.snapshot(orbit::SnapshotSelector{orbit::CommitSeq{2}, 60});
+  REQUIRE(retained);
+  REQUIRE(retained.value().node(orbit::NodeId{99}));
+  REQUIRE(!retained.value().out_edges(orbit::NodeId{1}, "DEPENDS").empty());
 }
 
 ORBIT_TEST(QueryExecutionHonorsPreCancelledToken) {

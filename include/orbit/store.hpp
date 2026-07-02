@@ -62,6 +62,10 @@ struct CompactionReport {
   std::size_t retained_nodes{0};
   std::size_t retained_edges{0};
   std::size_t pinned_generations{0};
+  std::size_t verified_snapshots{0};
+  std::size_t verified_nodes{0};
+  std::size_t verified_edges{0};
+  bool semantic_verification_passed{false};
   bool publishable{false};
 };
 

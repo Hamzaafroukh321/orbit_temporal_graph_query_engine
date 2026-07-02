@@ -39,7 +39,7 @@ The current implementation uses one store mutex around transaction publication a
 - Snapshot indexes declare a generation and commit coverage boundary; synchronous snapshot-local indexes cover exactly the snapshot commit.
 - Background index builds materialize a target commit's snapshot-local indexes on a worker and report the generated coverage without exposing raw storage handles.
 - Cache eviction removes only unpinned generations older than the latest registered generation.
-- The current compaction stage plans keep-last-commit retention, rejects publication under active old-generation pins, registers a replacement generation, and retires unpinned older index generations. It does not rewrite OGR bytes into replacement segment files yet.
+- The current compaction stage plans keep-last-commit retention, rejects publication under active old-generation pins, verifies retained commit/time snapshots and snapshot-local indexes before publication, registers a replacement generation, and retires unpinned older index generations. It does not rewrite OGR bytes into replacement segment files yet.
 - Result batches carry value-based continuation keys derived from node IDs, edge IDs, and path IDs rather than raw iterators.
 - Path execution rejects hop/frontier limits explicitly, supports `IN` and `OUT`
   traversal, and prevents repeated nodes within a path.

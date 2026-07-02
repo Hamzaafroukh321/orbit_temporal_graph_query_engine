@@ -31,6 +31,65 @@ bool visible_commit(CommitSeq begin, CommitSeq selector) {
   return begin.value <= selector.value;
 }
 
+bool contains_node_id(const std::vector<NodeVersionView>& nodes, NodeId id) {
+  return std::any_of(nodes.begin(), nodes.end(),
+                     [id](const NodeVersionView& node) { return node.id == id; });
+}
+
+bool contains_edge_id(const std::vector<EdgeVersionView>& edges, EdgeId id) {
+  return std::any_of(edges.begin(), edges.end(),
+                     [id](const EdgeVersionView& edge) { return edge.id == id; });
+}
+
+Result<void> verify_snapshot_indexes(const GraphSnapshot& snapshot) {
+  const auto& nodes = snapshot.nodes();
+  const auto& edges = snapshot.edges();
+  for (std::size_t i = 1; i < nodes.size(); ++i) {
+    if (!(nodes[i - 1].id < nodes[i].id)) {
+      return make_error(ErrorCode::InternalInvariant,
+                        "compaction verification found unordered snapshot nodes", "compact");
+    }
+  }
+  for (std::size_t i = 1; i < edges.size(); ++i) {
+    if (!(edges[i - 1].id < edges[i].id)) {
+      return make_error(ErrorCode::InternalInvariant,
+                        "compaction verification found unordered snapshot edges", "compact");
+    }
+  }
+
+  for (const auto& node : nodes) {
+    const auto by_id = snapshot.node(node.id);
+    if (!by_id || by_id->id != node.id) {
+      return make_error(ErrorCode::InternalInvariant,
+                        "compaction verification failed node-id lookup", "compact");
+    }
+    if (!contains_node_id(snapshot.nodes_with_label(node.label), node.id)) {
+      return make_error(ErrorCode::InternalInvariant,
+                        "compaction verification failed label lookup", "compact");
+    }
+    for (const auto& [key, value] : node.properties) {
+      if (!contains_node_id(snapshot.nodes_with_property(key, value), node.id)) {
+        return make_error(ErrorCode::InternalInvariant,
+                          "compaction verification failed property lookup", "compact");
+      }
+    }
+  }
+
+  for (const auto& edge : edges) {
+    if (!contains_node_id(nodes, edge.from) || !contains_node_id(nodes, edge.to)) {
+      return make_error(ErrorCode::InternalInvariant,
+                        "compaction verification found an edge with inactive endpoints",
+                        "compact");
+    }
+    if (!contains_edge_id(snapshot.out_edges(edge.from, edge.type), edge.id) ||
+        !contains_edge_id(snapshot.in_edges(edge.to, edge.type), edge.id)) {
+      return make_error(ErrorCode::InternalInvariant,
+                        "compaction verification failed adjacency lookup", "compact");
+    }
+  }
+  return {};
+}
+
 template <class Id, class Record>
 const Record* latest_at(const VersionMap<Id, Record>& versions, Id id, CommitSeq commit) {
   const auto found = versions.find(id);
@@ -316,8 +375,7 @@ struct GraphStore::Impl : std::enable_shared_from_this<GraphStore::Impl> {
   VersionMap<EdgeId, EdgeRecord> edges;
   std::vector<CommitChange> change_log;
 
-  Result<GraphSnapshot> make_snapshot(SnapshotSelector selector) const {
-    std::lock_guard<std::mutex> lock(mutex);
+  Result<GraphSnapshot> make_snapshot_locked(SnapshotSelector selector) const {
     const CommitSeq commit = selector.commit.value_or(latest);
     if (commit.value > latest.value) {
       return make_error(ErrorCode::NotFound, "requested commit is newer than store head", "store");
@@ -369,6 +427,60 @@ struct GraphStore::Impl : std::enable_shared_from_this<GraphStore::Impl> {
               [](const auto& lhs, const auto& rhs) { return lhs.id < rhs.id; });
     snapshot->rebuild_indexes();
     return GraphSnapshot{snapshot};
+  }
+
+  Result<GraphSnapshot> make_snapshot(SnapshotSelector selector) const {
+    std::lock_guard<std::mutex> lock(mutex);
+    return make_snapshot_locked(selector);
+  }
+
+  Result<CompactionReport> verify_compaction_locked(CompactionReport report) const {
+    std::set<std::int64_t> valid_times{0};
+    const auto collect_times = [&](const auto& versions) {
+      for (const auto& [id, history] : versions) {
+        (void)id;
+        for (const auto& record : history) {
+          if (record.tombstone || record.view.begin_commit.value < report.retained_from.value ||
+              record.view.begin_commit.value > report.retained_through.value) {
+            continue;
+          }
+          valid_times.insert(record.view.interval.start);
+          if (record.view.interval.end > record.view.interval.start) {
+            valid_times.insert(record.view.interval.end - 1);
+          }
+        }
+      }
+    };
+    collect_times(nodes);
+    collect_times(edges);
+
+    const std::uint64_t begin = report.retained_from.value;
+    const std::uint64_t end = report.retained_through.value;
+    for (std::uint64_t commit = begin;; ++commit) {
+      for (const auto valid_time : valid_times) {
+        auto snapshot = make_snapshot_locked(SnapshotSelector{CommitSeq{commit}, valid_time});
+        if (!snapshot) {
+          return snapshot.error();
+        }
+        auto indexes = verify_snapshot_indexes(snapshot.value());
+        if (!indexes) {
+          return indexes.error();
+        }
+        if (!snapshot.value().index_coverage().covers(CommitSeq{commit})) {
+          return make_error(ErrorCode::InternalInvariant,
+                            "compaction verification found insufficient index coverage",
+                            "compact");
+        }
+        ++report.verified_snapshots;
+        report.verified_nodes += snapshot.value().nodes().size();
+        report.verified_edges += snapshot.value().edges().size();
+      }
+      if (commit == end) {
+        break;
+      }
+    }
+    report.semantic_verification_passed = true;
+    return report;
   }
 
   Result<void> load() {
@@ -888,11 +1000,17 @@ Result<CompactionReport> GraphStore::compact(std::size_t keep_last_commits) {
   if (!impl_) {
     return make_error(ErrorCode::InternalInvariant, "uninitialized store", "store");
   }
+  CompactionReport verified;
   {
     std::lock_guard<std::mutex> lock(impl_->mutex);
     if (impl_->shutting_down) {
       return make_error(ErrorCode::Cancelled, "store is shutting down", "compact");
     }
+    auto verification = impl_->verify_compaction_locked(planned.value());
+    if (!verification) {
+      return verification.error();
+    }
+    verified = verification.value();
     std::uint64_t replacement_generation = 1;
     if (impl_->latest.value != 0) {
       auto next_generation = checked_add(impl_->latest.value, 1U);
@@ -904,7 +1022,7 @@ Result<CompactionReport> GraphStore::compact(std::size_t keep_last_commits) {
     impl_->leases->register_generation(replacement_generation);
   }
   (void)evict_unpinned_indexes();
-  return planned.value();
+  return verified;
 }
 
 Result<CommitSubscription> GraphStore::subscribe_commits(CommitSeq after) const {
