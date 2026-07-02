@@ -9,7 +9,7 @@ Orbit is a C++20 embedded temporal property-graph engine. This repository curren
 - CLI commands for `init`, `apply`, `query`, `explain`, `check`, and `inspect`.
 - Unit/integration tests plus three smoke fuzz harnesses wired to production code.
 
-The full specification in `09_orbit_temporal_graph_query_engine.md` remains the source of truth. Durable background index catalog integration, compaction relocation, full recovery matrices, broader parallel operator coverage, and performance campaigns are not yet complete.
+The full specification in `09_orbit_temporal_graph_query_engine.md` remains the source of truth. Durable background index catalog integration, compaction relocation, full recovery matrices, and performance campaigns are not yet complete.
 
 ## Build
 

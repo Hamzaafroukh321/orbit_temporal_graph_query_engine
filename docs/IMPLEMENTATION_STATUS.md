@@ -33,7 +33,7 @@ Perform the final requirement audit against Sections 20 and 21, then keep any fu
 - Stable value-based continuation keys for scan, adjacency, and path result batches.
 - Explicit `ORDER ASC|DESC` clauses over canonical Orbit result order.
 - `WHERE` predicates for `=`, `!=`, `<`, `<=`, `>`, and `>=` over typed values.
-- API-level deterministic parallel query execution option for independent seed predicate filtering and one-hop expansion, with canonical serial ordering and cursor batching preserved.
+- API-level deterministic parallel query execution option for independent seed predicate filtering, one-hop expansion, and per-seed bounded path expansion, with canonical serial ordering and cursor batching preserved.
 - Bounded BFS path execution with explicit hop/frontier resource errors and simple-path cycle rejection.
 - Cost-aware bounded path ordering using finite nonnegative edge properties.
 - Bidirectional `STEP IN|OUT` and `PATH IN|OUT` traversal.
@@ -58,7 +58,7 @@ Perform the final requirement audit against Sections 20 and 21, then keep any fu
 
 ## In-Progress Modules
 
-- Full-version recovery, relocation compaction, durable background index catalog integration, parallel bounded-path coverage, performance budgets and long-run fuzzing.
+- Full-version recovery, relocation compaction, durable background index catalog integration, performance budgets and long-run fuzzing.
 
 ## Known Blockers
 

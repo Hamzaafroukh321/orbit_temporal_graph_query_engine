@@ -591,7 +591,9 @@ std::string path_string(const std::vector<NodeId>& nodes) {
 struct MaterializedRows {
   std::vector<QueryRow> rows;
   std::vector<std::string> continuation_keys;
+  std::vector<double> row_costs;
   std::size_t work_units{0};
+  std::optional<Error> error;
 };
 
 Result<MaterializedRows> expand_step_parallel_deterministically(
@@ -633,6 +635,7 @@ Result<MaterializedRows> expand_step_parallel_deterministically(
             partition.rows.push_back(QueryRow{{static_cast<std::int64_t>(adjacent_node.value)}});
           }
           partition.continuation_keys.push_back(key);
+          partition.row_costs.push_back(0.0);
         }
       }
       return partition;
@@ -647,6 +650,8 @@ Result<MaterializedRows> expand_step_parallel_deterministically(
     merged.continuation_keys.insert(merged.continuation_keys.end(),
                                     partition.continuation_keys.begin(),
                                     partition.continuation_keys.end());
+    merged.row_costs.insert(merged.row_costs.end(), partition.row_costs.begin(),
+                            partition.row_costs.end());
   }
   return merged;
 }
@@ -675,6 +680,111 @@ Result<double> edge_cost(const EdgeVersionView& edge, const std::string& propert
         }
       },
       found->second);
+}
+
+Result<MaterializedRows> expand_path_parallel_deterministically(
+    const GraphSnapshot& snapshot, const QueryAst& ast, const std::vector<NodeVersionView>& seeds,
+    QueryLimits limits) {
+  if (seeds.size() < 2U) {
+    return MaterializedRows{};
+  }
+
+  struct Frontier {
+    NodeId node;
+    std::vector<NodeId> path;
+    std::size_t hops{0};
+    double cost{0.0};
+  };
+
+  const std::size_t workers = std::min<std::size_t>(4U, seeds.size());
+  const std::size_t chunk = (seeds.size() + workers - 1U) / workers;
+  std::vector<std::future<MaterializedRows>> futures;
+  futures.reserve(workers);
+  for (std::size_t worker = 0; worker < workers; ++worker) {
+    const std::size_t begin = worker * chunk;
+    if (begin >= seeds.size()) {
+      break;
+    }
+    const std::size_t end = std::min(seeds.size(), begin + chunk);
+    futures.push_back(std::async(std::launch::async, [&, begin, end]() {
+      MaterializedRows partition;
+      for (std::size_t index = begin; index < end; ++index) {
+        const auto& seed = seeds[index];
+        std::deque<Frontier> queue;
+        queue.push_back(Frontier{seed.id, {seed.id}, 0});
+        while (!queue.empty()) {
+          ++partition.work_units;
+          if (queue.size() > limits.frontier_limit) {
+            partition.error =
+                make_error(ErrorCode::ResourceLimit, "path frontier limit exceeded", "query");
+            return partition;
+          }
+          auto current = queue.front();
+          queue.pop_front();
+          if (current.hops >= ast.path_hops) {
+            continue;
+          }
+          const auto adjacent = ast.direction == Direction::Out
+                                    ? snapshot.out_edges(current.node, ast.edge_type)
+                                    : snapshot.in_edges(current.node, ast.edge_type);
+          for (const auto& edge : adjacent) {
+            ++partition.work_units;
+            const NodeId adjacent_node = ast.direction == Direction::Out ? edge.to : edge.from;
+            if (std::find(current.path.begin(), current.path.end(), adjacent_node) !=
+                current.path.end()) {
+              continue;
+            }
+            double next_cost = current.cost + 1.0;
+            if (ast.cost_property) {
+              auto cost = edge_cost(edge, *ast.cost_property);
+              if (!cost) {
+                partition.error = cost.error();
+                return partition;
+              }
+              next_cost = current.cost + cost.value();
+            }
+            auto next_path = current.path;
+            next_path.push_back(adjacent_node);
+            const std::string key = "path:" + path_string(next_path);
+            ++partition.work_units;
+            if (ast.yield == YieldKind::Path) {
+              partition.rows.push_back(QueryRow{{path_string(next_path)}});
+            } else if (ast.yield == YieldKind::EdgeId) {
+              partition.rows.push_back(QueryRow{{static_cast<std::int64_t>(edge.id.value)}});
+            } else {
+              partition.rows.push_back(QueryRow{{static_cast<std::int64_t>(adjacent_node.value)}});
+            }
+            partition.continuation_keys.push_back(key);
+            partition.row_costs.push_back(next_cost);
+            if (queue.size() >= limits.frontier_limit) {
+              partition.error =
+                  make_error(ErrorCode::ResourceLimit, "path frontier limit exceeded", "query");
+              return partition;
+            }
+            queue.push_back(Frontier{adjacent_node, std::move(next_path), current.hops + 1U,
+                                     next_cost});
+          }
+        }
+      }
+      return partition;
+    }));
+  }
+
+  MaterializedRows merged;
+  for (auto& future : futures) {
+    auto partition = future.get();
+    if (partition.error) {
+      return *partition.error;
+    }
+    merged.work_units += partition.work_units;
+    merged.rows.insert(merged.rows.end(), partition.rows.begin(), partition.rows.end());
+    merged.continuation_keys.insert(merged.continuation_keys.end(),
+                                    partition.continuation_keys.begin(),
+                                    partition.continuation_keys.end());
+    merged.row_costs.insert(merged.row_costs.end(), partition.row_costs.begin(),
+                            partition.row_costs.end());
+  }
+  return merged;
 }
 
 std::string direction_name(Direction direction) {
@@ -919,6 +1029,49 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
   if (impl_->ast.path_hops > limits.path_hop_limit) {
     return make_error(ErrorCode::ResourceLimit, "query path hop bound exceeds execution limit",
                       "query");
+  }
+  if (options.mode == QueryExecutionMode::ParallelDeterministic && seeds.size() >= 2U) {
+    if (cancel.cancelled()) {
+      return make_error(ErrorCode::Cancelled, "query execution cancelled", "query");
+    }
+    auto expanded = expand_path_parallel_deterministically(snapshot, impl_->ast, seeds, limits);
+    if (!expanded) {
+      return expanded.error();
+    }
+    if (expanded.value().work_units > limits.work_limit ||
+        work_units > limits.work_limit - expanded.value().work_units) {
+      return make_error(ErrorCode::ResourceLimit, "query work limit exceeded", "query");
+    }
+    work_units += expanded.value().work_units;
+    if (expanded.value().rows.size() > limits.row_limit ||
+        rows.size() > limits.row_limit - expanded.value().rows.size()) {
+      return make_error(ErrorCode::ResourceLimit, "query row limit exceeded", "query");
+    }
+    rows = std::move(expanded.value().rows);
+    continuation_keys = std::move(expanded.value().continuation_keys);
+    row_costs = std::move(expanded.value().row_costs);
+    if (impl_->ast.cost_property) {
+      std::vector<std::size_t> order(rows.size());
+      std::iota(order.begin(), order.end(), 0U);
+      std::sort(order.begin(), order.end(), [&](std::size_t lhs, std::size_t rhs) {
+        if (row_costs[lhs] != row_costs[rhs]) {
+          return row_costs[lhs] < row_costs[rhs];
+        }
+        return continuation_keys[lhs] < continuation_keys[rhs];
+      });
+      std::vector<QueryRow> sorted_rows;
+      std::vector<std::string> sorted_keys;
+      sorted_rows.reserve(rows.size());
+      sorted_keys.reserve(continuation_keys.size());
+      for (const auto index : order) {
+        sorted_rows.push_back(std::move(rows[index]));
+        sorted_keys.push_back(std::move(continuation_keys[index]));
+      }
+      rows = std::move(sorted_rows);
+      continuation_keys = std::move(sorted_keys);
+    }
+    apply_explicit_order(impl_->ast, rows, continuation_keys);
+    return ResultCursor{std::move(rows), std::move(continuation_keys)};
   }
   const std::size_t hop_bound = impl_->ast.path_hops;
   for (const auto& seed : seeds) {
