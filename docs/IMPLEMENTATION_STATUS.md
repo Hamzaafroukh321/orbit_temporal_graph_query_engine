@@ -70,7 +70,7 @@ Perform the final requirement audit against Sections 20 and 21, then keep any fu
 - `scripts\build_msvc.cmd` succeeded.
 - `scripts\verify_cmake_matrix.cmd` passed for debug, release, RelWithDebInfo, asan, tsan, coverage, fuzz, CTest, and release install/export.
 - Manual MSVC `/std:c++20 /EHsc /W4 /WX` build succeeded for `orbit_unit_tests.exe`, `orbit.exe`, and all three fuzz smoke executables.
-- `build\manual\orbit_unit_tests.exe` passed: 74 tests, 0 failed.
+- `build\manual\orbit_unit_tests.exe` passed: 75 tests, 0 failed.
 - Fault matrix smoke passed through `scripts\run_fault_matrix.cmd` build/test output, plus direct successful runs of all three fuzz smoke executables.
 - `scripts\run_regression_matrix.cmd --no-build` passed, covering unit tests, fuzz smokes, CLI smoke, and fault matrix smoke.
 - `scripts\verify_msvc.cmd` passed, covering fresh manual build plus the full regression matrix.
@@ -86,7 +86,7 @@ ASan/UBSan, TSan, coverage, and fuzz presets exist, and `scripts\verify_cmake_ma
 
 ## Fuzz Status
 
-Three production-linked byte-driven fuzz smoke targets exist in `fuzz/`. All three build with the manual MSVC fallback and run successfully against `corpus`. The graph sequence smoke compares production commit heads and bounded path rows against an independent ordered-map reference model after each operation and reopen.
+Three production-linked byte-driven fuzz smoke targets exist in `fuzz/`. All three build with the manual MSVC fallback and run successfully against `corpus`. The graph sequence smoke compares production commit heads plus scan, one-hop, and bounded path rows against an independent ordered-map reference model after each operation and reopen.
 
 ## Documentation Status
 
