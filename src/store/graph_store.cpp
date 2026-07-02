@@ -173,11 +173,13 @@ struct GraphSnapshot::Impl {
   std::map<std::string, std::vector<std::size_t>> label_index;
   std::map<std::string, std::vector<std::size_t>> property_index;
   std::map<NodeId, std::map<std::string, std::vector<std::size_t>>> out_adjacency;
+  std::map<NodeId, std::map<std::string, std::vector<std::size_t>>> in_adjacency;
 
   void rebuild_indexes() {
     label_index.clear();
     property_index.clear();
     out_adjacency.clear();
+    in_adjacency.clear();
     for (std::size_t i = 0; i < nodes.size(); ++i) {
       label_index[nodes[i].label].push_back(i);
       for (const auto& [key, value] : nodes[i].properties) {
@@ -186,6 +188,7 @@ struct GraphSnapshot::Impl {
     }
     for (std::size_t i = 0; i < edges.size(); ++i) {
       out_adjacency[edges[i].from][edges[i].type].push_back(i);
+      in_adjacency[edges[i].to][edges[i].type].push_back(i);
     }
   }
 
@@ -260,6 +263,23 @@ std::vector<EdgeVersionView> GraphSnapshot::out_edges(NodeId from, std::string_v
   }
   const auto type_it = from_it->second.find(std::string(type));
   if (type_it == from_it->second.end()) {
+    return result;
+  }
+  result.reserve(type_it->second.size());
+  for (const auto index : type_it->second) {
+    result.push_back(impl_->edges[index]);
+  }
+  return result;
+}
+
+std::vector<EdgeVersionView> GraphSnapshot::in_edges(NodeId to, std::string_view type) const {
+  std::vector<EdgeVersionView> result;
+  const auto to_it = impl_->in_adjacency.find(to);
+  if (to_it == impl_->in_adjacency.end()) {
+    return result;
+  }
+  const auto type_it = to_it->second.find(std::string(type));
+  if (type_it == to_it->second.end()) {
     return result;
   }
   result.reserve(type_it->second.size());

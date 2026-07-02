@@ -82,6 +82,8 @@ class GraphSnapshot {
                                                                  const PropertyValue& value) const;
   [[nodiscard]] std::vector<EdgeVersionView> out_edges(NodeId from,
                                                        std::string_view type) const;
+  [[nodiscard]] std::vector<EdgeVersionView> in_edges(NodeId to,
+                                                      std::string_view type) const;
   [[nodiscard]] IndexCoverage index_coverage() const;
 
  private:

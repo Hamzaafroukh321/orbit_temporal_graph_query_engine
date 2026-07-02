@@ -5,7 +5,7 @@ Orbit is a C++20 embedded temporal property-graph engine. This repository curren
 - OGR-1 store creation, append-only transaction groups, checksummed record reading, and reopen.
 - Stable node and edge IDs with immutable commit snapshots and half-open valid-time intervals.
 - Atomic node/edge/property mutations through a single-writer transaction API.
-- A small original OQS subset for label scans, property filters, one-hop `STEP OUT`, bounded `PATH OUT`, and deterministic result batches.
+- A small original OQS subset for label scans, property filters, bidirectional one-hop `STEP`, bounded bidirectional `PATH`, and deterministic result batches.
 - CLI commands for `init`, `apply`, `query`, `explain`, `check`, and `inspect`.
 - Unit/integration tests plus three smoke fuzz harnesses wired to production code.
 

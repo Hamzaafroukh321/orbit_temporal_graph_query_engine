@@ -25,6 +25,11 @@ enum class YieldKind {
   Path,
 };
 
+enum class Direction {
+  Out,
+  In,
+};
+
 struct Predicate {
   std::string key;
   PropertyValue value;
@@ -34,6 +39,7 @@ struct QueryAst {
   std::string source_label;
   std::optional<Predicate> where;
   Mode mode{Mode::Scan};
+  Direction direction{Direction::Out};
   std::string edge_type;
   std::size_t path_hops{1};
   std::optional<std::string> cost_property;
@@ -152,20 +158,24 @@ class Parser {
 
     if (match("STEP")) {
       ast.mode = Mode::Step;
-      if (!match("OUT")) {
-        return syntax("only STEP OUT is currently supported");
+      auto direction = parse_direction("STEP");
+      if (!direction) {
+        return direction.error();
       }
+      ast.direction = direction.value();
       if (eof()) {
-        return syntax("expected edge type after STEP OUT");
+        return syntax("expected edge type after STEP direction");
       }
       ast.edge_type = tokens_[pos_++].text;
     } else if (match("PATH")) {
       ast.mode = Mode::Path;
-      if (!match("OUT")) {
-        return syntax("only PATH OUT is currently supported");
+      auto direction = parse_direction("PATH");
+      if (!direction) {
+        return direction.error();
       }
+      ast.direction = direction.value();
       if (eof()) {
-        return syntax("expected edge type after PATH OUT");
+        return syntax("expected edge type after PATH direction");
       }
       ast.edge_type = tokens_[pos_++].text;
       if (match("HOPS")) {
@@ -254,6 +264,21 @@ class Parser {
     return value;
   }
 
+  Result<Direction> parse_direction(std::string_view clause) {
+    if (match("OUT")) {
+      return Direction::Out;
+    }
+    if (match("IN")) {
+      return Direction::In;
+    }
+    Error error = make_error(ErrorCode::QuerySyntax,
+                             "expected IN or OUT after " + std::string(clause), "oqs");
+    if (!eof()) {
+      error.range = tokens_[pos_].range;
+    }
+    return error;
+  }
+
   PropertyValue parse_literal(const std::string& text) const {
     if (ieq(text, "true")) {
       return true;
@@ -331,6 +356,10 @@ Result<double> edge_cost(const EdgeVersionView& edge, const std::string& propert
         }
       },
       found->second);
+}
+
+std::string direction_name(Direction direction) {
+  return direction == Direction::Out ? "out" : "in";
 }
 
 }  // namespace
@@ -485,19 +514,23 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
       if (!polled) {
         return polled.error();
       }
-      for (const auto& edge : snapshot.out_edges(seed.id, impl_->ast.edge_type)) {
+      const auto adjacent = impl_->ast.direction == Direction::Out
+                                ? snapshot.out_edges(seed.id, impl_->ast.edge_type)
+                                : snapshot.in_edges(seed.id, impl_->ast.edge_type);
+      for (const auto& edge : adjacent) {
         polled = poll();
         if (!polled) {
           return polled.error();
         }
-        if (!find_node(snapshot, edge.to)) {
+        const NodeId adjacent_node = impl_->ast.direction == Direction::Out ? edge.to : edge.from;
+        if (!find_node(snapshot, adjacent_node)) {
           continue;
         }
         const std::string key = "adj:" + std::to_string(seed.id.value) + ":" +
                                 std::to_string(edge.id.value) + ":" +
-                                std::to_string(edge.to.value);
+                                std::to_string(adjacent_node.value);
         auto emitted = impl_->ast.yield == YieldKind::EdgeId ? emit_edge(edge.id, key, 0.0)
-                                                             : emit_node(edge.to, key, 0.0);
+                                                             : emit_node(adjacent_node, key, 0.0);
         if (!emitted) {
           return emitted.error();
         }
@@ -533,12 +566,16 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
       if (current.hops >= hop_bound) {
         continue;
       }
-      for (const auto& edge : snapshot.out_edges(current.node, impl_->ast.edge_type)) {
+      const auto adjacent = impl_->ast.direction == Direction::Out
+                                ? snapshot.out_edges(current.node, impl_->ast.edge_type)
+                                : snapshot.in_edges(current.node, impl_->ast.edge_type);
+      for (const auto& edge : adjacent) {
         polled = poll();
         if (!polled) {
           return polled.error();
         }
-        if (std::find(current.path.begin(), current.path.end(), edge.to) != current.path.end()) {
+        const NodeId adjacent_node = impl_->ast.direction == Direction::Out ? edge.to : edge.from;
+        if (std::find(current.path.begin(), current.path.end(), adjacent_node) != current.path.end()) {
           continue;
         }
         double next_cost = current.cost + 1.0;
@@ -550,7 +587,7 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
           next_cost = current.cost + cost.value();
         }
         auto next_path = current.path;
-        next_path.push_back(edge.to);
+        next_path.push_back(adjacent_node);
         const std::string key = "path:" + path_string(next_path);
         if (impl_->ast.yield == YieldKind::Path) {
           auto emitted = emit_path(next_path, key, next_cost);
@@ -563,7 +600,7 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
             return emitted.error();
           }
         } else {
-          auto emitted = emit_node(edge.to, key, next_cost);
+          auto emitted = emit_node(adjacent_node, key, next_cost);
           if (!emitted) {
             return emitted.error();
           }
@@ -571,7 +608,8 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
         if (queue.size() >= limits.frontier_limit) {
           return make_error(ErrorCode::ResourceLimit, "path frontier limit exceeded", "query");
         }
-        queue.push_back(Frontier{edge.to, std::move(next_path), current.hops + 1U, next_cost});
+        queue.push_back(Frontier{adjacent_node, std::move(next_path), current.hops + 1U,
+                                 next_cost});
       }
     }
   }
@@ -614,9 +652,11 @@ ExplainPlan PreparedQuery::explain() const {
     plan.operators.push_back("property-filter(" + impl_->ast.where->key + ")");
   }
   if (impl_->ast.mode == Mode::Step) {
-    plan.operators.push_back("adjacency-expand-out(type=" + impl_->ast.edge_type + ")");
+    plan.operators.push_back("adjacency-expand-" + direction_name(impl_->ast.direction) +
+                             "(type=" + impl_->ast.edge_type + ")");
   } else if (impl_->ast.mode == Mode::Path) {
-    plan.operators.push_back("bounded-bfs-out(type=" + impl_->ast.edge_type + ")");
+    plan.operators.push_back("bounded-bfs-" + direction_name(impl_->ast.direction) +
+                             "(type=" + impl_->ast.edge_type + ")");
     if (impl_->ast.cost_property) {
       plan.operators.push_back("cost-order(" + *impl_->ast.cost_property + ")");
     }
@@ -640,7 +680,7 @@ Result<PreparedQuery> prepare_query(std::string_view query, Limits limits) {
   impl->ast = ast.value();
   std::ostringstream fingerprint;
   fingerprint << "from=" << impl->ast.source_label << ";mode=" << static_cast<int>(impl->ast.mode)
-              << ";edge=" << impl->ast.edge_type << ";yield="
+              << ";dir=" << direction_name(impl->ast.direction) << ";edge=" << impl->ast.edge_type << ";yield="
               << static_cast<int>(impl->ast.yield) << ";hops=" << impl->ast.path_hops;
   if (impl->ast.cost_property) {
     fingerprint << ";cost=" << *impl->ast.cost_property;

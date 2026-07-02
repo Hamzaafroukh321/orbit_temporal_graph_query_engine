@@ -149,12 +149,18 @@ ORBIT_TEST(AdjacencyBothDirections) {
   auto store = sample_store("adjacency");
   seed_graph(store);
   auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
-  auto prepared = store.prepare("FROM Service STEP OUT DEPENDS YIELD node.id");
+  auto out = store.prepare("FROM Service STEP OUT DEPENDS YIELD node.id");
+  auto incoming = store.prepare("FROM Database STEP IN DEPENDS YIELD node.id");
   REQUIRE(snapshot);
-  REQUIRE(prepared);
-  auto rows = drain(prepared.value().execute(snapshot.value()).value(), 1);
-  REQUIRE(rows.size() == 1);
-  REQUIRE(std::get<std::int64_t>(rows[0].values[0]) == 2);
+  REQUIRE(out);
+  REQUIRE(incoming);
+  auto out_rows = drain(out.value().execute(snapshot.value()).value(), 1);
+  REQUIRE(out_rows.size() == 1);
+  REQUIRE(std::get<std::int64_t>(out_rows[0].values[0]) == 2);
+  auto in_rows = drain(incoming.value().execute(snapshot.value()).value(), 10);
+  REQUIRE(in_rows.size() == 2);
+  REQUIRE(std::get<std::int64_t>(in_rows[0].values[0]) == 1);
+  REQUIRE(std::get<std::int64_t>(in_rows[1].values[0]) == 2);
 }
 
 ORBIT_TEST(SnapshotPinsGeneration) {
@@ -180,11 +186,13 @@ ORBIT_TEST(IndexCoveragePlannerFallback) {
 
 ORBIT_TEST(GrammarAllCoreClauses) {
   REQUIRE(orbit::prepare_query("AT COMMIT HEAD TIME 25 FROM Service STEP OUT DEPENDS YIELD node.id"));
+  REQUIRE(orbit::prepare_query("FROM Database STEP IN DEPENDS YIELD node.id"));
   REQUIRE(orbit::prepare_query("FROM Service PATH OUT DEPENDS HOPS 2 YIELD path"));
+  REQUIRE(orbit::prepare_query("FROM Database PATH IN DEPENDS HOPS 2 YIELD path"));
 }
 
 ORBIT_TEST(SourceRangeDiagnostics) {
-  auto prepared = orbit::prepare_query("FROM Service STEP IN DEPENDS YIELD node.id");
+  auto prepared = orbit::prepare_query("FROM Service STEP SIDEWAYS DEPENDS YIELD node.id");
   REQUIRE(!prepared);
   REQUIRE(prepared.error().range.has_value());
 }
@@ -324,6 +332,9 @@ ORBIT_TEST(SnapshotAdjacencyIndexMatchesVisibleEdges) {
   auto edges = snapshot.value().out_edges(orbit::NodeId{1}, "DEPENDS");
   REQUIRE(edges.size() == 1);
   REQUIRE(edges[0].id.value == 10);
+  auto incoming = snapshot.value().in_edges(orbit::NodeId{3}, "DEPENDS");
+  REQUIRE(incoming.size() == 1);
+  REQUIRE(incoming[0].id.value == 11);
 }
 
 ORBIT_TEST(PropertyIndexedQueryStillFiltersLabel) {
@@ -466,6 +477,20 @@ ORBIT_TEST(PathCycleDoesNotRepeatSeedNode) {
   auto rows = drain(prepared.value().execute(snapshot.value()).value(), 10);
   REQUIRE(rows.size() == 1);
   REQUIRE(std::get<std::string>(rows[0].values[0]) == "1->2");
+}
+
+ORBIT_TEST(IncomingPathTraversesReverseDirection) {
+  auto store = sample_store("path_in_reverse");
+  seed_graph(store);
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  auto prepared = store.prepare("FROM Database PATH IN DEPENDS HOPS 2 YIELD path");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+  auto rows = drain(prepared.value().execute(snapshot.value()).value(), 10);
+  REQUIRE(rows.size() == 3);
+  REQUIRE(std::get<std::string>(rows[0].values[0]) == "2->1");
+  REQUIRE(std::get<std::string>(rows[1].values[0]) == "3->2");
+  REQUIRE(std::get<std::string>(rows[2].values[0]) == "3->2->1");
 }
 
 ORBIT_TEST(CostAwarePathOrdersByCumulativeCost) {

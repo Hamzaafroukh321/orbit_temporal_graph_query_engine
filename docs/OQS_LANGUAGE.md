@@ -5,7 +5,7 @@ The implemented OQS subset is original and intentionally small:
 ```text
 [AT COMMIT <selector> TIME <integer>] FROM <Label>
   [WHERE <property> = <literal>]
-  [STEP OUT <Type> | PATH OUT <Type> [HOPS <integer>] [COST <edge-property>]]
+  [STEP <IN|OUT> <Type> | PATH <IN|OUT> <Type> [HOPS <integer>] [COST <edge-property>]]
   YIELD node.id | edge.id | path
 ```
 
@@ -13,7 +13,11 @@ The implemented OQS subset is original and intentionally small:
 
 ## Ordering
 
-Scans emit ascending node IDs. One-hop expansion iterates seed nodes, then ascending edge IDs from the snapshot. Bounded paths use breadth-first expansion with the same edge order and reject repeated nodes in a path.
+Scans emit ascending node IDs. One-hop expansion iterates seed nodes, then
+ascending edge IDs from the snapshot. `OUT` follows edge `from -> to`; `IN`
+follows the same active edge in reverse from `to -> from`. Bounded paths use
+breadth-first expansion with the same edge order and reject repeated nodes in a
+path.
 
 When `COST` is present on a path clause, every traversed edge must contain a finite nonnegative integer or double property with that name. Bounded paths are ordered by cumulative cost, then by stable path continuation key.
 
@@ -29,5 +33,5 @@ checked-in expected files.
 
 ## Pending
 
-Typed parameters, richer predicates, bidirectional traversal, parallel execution,
-and explicit order clauses remain pending.
+Typed parameters, richer predicates, parallel execution, and explicit order
+clauses remain pending.
