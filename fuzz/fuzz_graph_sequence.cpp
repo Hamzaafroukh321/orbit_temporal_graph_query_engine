@@ -69,6 +69,33 @@ struct RefGraph {
     return found != nodes.end() && found->second.interval.contains(time);
   }
 
+  std::vector<std::string> service_nodes(std::int64_t time) const {
+    std::vector<std::string> rows;
+    for (const auto& [id, node] : nodes) {
+      if (node.label == "Service" && node.interval.contains(time)) {
+        rows.push_back(std::to_string(id));
+      }
+    }
+    return rows;
+  }
+
+  std::vector<std::string> service_steps(std::int64_t time) const {
+    std::vector<std::string> rows;
+    for (const auto& [seed_id, node] : nodes) {
+      if (node.label != "Service" || !node.interval.contains(time)) {
+        continue;
+      }
+      for (const auto& [edge_id, edge] : edges) {
+        if (edge.from == seed_id && edge.type == "DEPENDS" && edge.interval.contains(time) &&
+            active_node(edge.to, time)) {
+          rows.push_back(std::to_string(edge.to));
+        }
+        (void)edge_id;
+      }
+    }
+    return rows;
+  }
+
   std::vector<std::string> service_paths(std::int64_t time) const {
     struct Emitted {
       double cost{0.0};
@@ -133,7 +160,7 @@ struct RefGraph {
   }
 };
 
-std::vector<std::string> drain_paths(orbit::ResultCursor cursor) {
+std::vector<std::string> drain_rows(orbit::ResultCursor cursor) {
   std::vector<std::string> rows;
   while (true) {
     auto batch = cursor.next(7);
@@ -144,13 +171,40 @@ std::vector<std::string> drain_paths(orbit::ResultCursor cursor) {
       break;
     }
     for (const auto& row : batch.value()->rows) {
-      if (row.values.empty() || !std::holds_alternative<std::string>(row.values[0])) {
+      if (row.values.empty()) {
         return {"error:bad-row"};
       }
-      rows.push_back(std::get<std::string>(row.values[0]));
+      if (std::holds_alternative<std::int64_t>(row.values[0])) {
+        rows.push_back(std::to_string(std::get<std::int64_t>(row.values[0])));
+      } else if (std::holds_alternative<std::string>(row.values[0])) {
+        rows.push_back(std::get<std::string>(row.values[0]));
+      } else {
+        return {"error:bad-row"};
+      }
     }
   }
   return rows;
+}
+
+bool compare_query(orbit::GraphStore& store, const orbit::GraphSnapshot& snapshot,
+                   const std::string& text, std::vector<std::string> expected) {
+  auto query = store.prepare(text);
+  if (!query) {
+    std::cerr << "failed to prepare reference comparison: " << text << "\n";
+    return false;
+  }
+  auto cursor = query.value().execute(snapshot, orbit::QueryLimits{256, 16, 4, 256, 10000});
+  if (!cursor) {
+    std::cerr << cursor.error().describe() << "\n";
+    return false;
+  }
+  const auto production = drain_rows(std::move(cursor.value()));
+  if (production != expected) {
+    std::cerr << "reference mismatch query=" << text << " production=" << production.size()
+              << " expected=" << expected.size() << "\n";
+    return false;
+  }
+  return true;
 }
 
 bool compare_with_reference(orbit::GraphStore& store, const RefGraph& reference) {
@@ -160,21 +214,21 @@ bool compare_with_reference(orbit::GraphStore& store, const RefGraph& reference)
     return false;
   }
   auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 1});
-  auto query = store.prepare("FROM Service PATH OUT DEPENDS HOPS 2 COST weight YIELD path");
-  if (!snapshot || !query) {
-    std::cerr << "failed to prepare reference comparison\n";
+  if (!snapshot) {
+    std::cerr << "failed to prepare reference snapshot\n";
     return false;
   }
-  auto cursor = query.value().execute(snapshot.value(), orbit::QueryLimits{256, 16, 4, 256, 10000});
-  if (!cursor) {
-    std::cerr << cursor.error().describe() << "\n";
+  if (!compare_query(store, snapshot.value(), "FROM Service YIELD node.id",
+                     reference.service_nodes(1))) {
     return false;
   }
-  const auto production = drain_paths(std::move(cursor.value()));
-  const auto expected = reference.service_paths(1);
-  if (production != expected) {
-    std::cerr << "reference mismatch production=" << production.size()
-              << " expected=" << expected.size() << "\n";
+  if (!compare_query(store, snapshot.value(), "FROM Service STEP OUT DEPENDS YIELD node.id",
+                     reference.service_steps(1))) {
+    return false;
+  }
+  if (!compare_query(store, snapshot.value(),
+                     "FROM Service PATH OUT DEPENDS HOPS 2 COST weight YIELD path",
+                     reference.service_paths(1))) {
     return false;
   }
   return true;

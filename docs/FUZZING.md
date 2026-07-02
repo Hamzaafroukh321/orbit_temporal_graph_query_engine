@@ -3,7 +3,7 @@
 Three bounded byte-driven smoke harnesses are present:
 
 - `orbit_ogr_parser_fuzz`: creates a canonical store, mutates truncation points from seed bytes, and reopens each variant through production format/recovery code.
-- `orbit_graph_sequence_fuzz`: interprets seed bytes as bounded create/delete/abort/query/reopen graph operations through production store/query APIs and compares commit heads plus bounded path rows against an independent ordered-map reference graph.
+- `orbit_graph_sequence_fuzz`: interprets seed bytes as bounded create/delete/abort/query/reopen graph operations through production store/query APIs and compares commit heads plus scan, one-hop, and bounded path rows against an independent ordered-map reference graph.
 - `orbit_query_pipeline_fuzz`: maps seed bytes to OQS variants, snapshot selectors, batch sizes, and cancellation cases through production parser/planner/operator code.
 
 These are smoke harnesses, not full libFuzzer campaigns yet. They are bounded, deterministic, use local files under the supplied corpus directory, and do not execute arbitrary input.
@@ -29,4 +29,7 @@ Generated smoke files are ignored by Git; minimized human-reviewed regression
 inputs should be added as named fixtures rather than committed from automatic
 run output.
 
-Pending work includes native libFuzzer entry points, richer original seed corpora, dictionaries, minimization workflow, and a broader reference model covering every retained snapshot/query form.
+Pending work includes native libFuzzer entry points, richer original seed corpora,
+dictionaries, minimization workflow, and broader reference-model coverage for
+retained snapshot selectors, predicate variants, and bidirectional/cost query
+combinations beyond the current smoke grammar.
