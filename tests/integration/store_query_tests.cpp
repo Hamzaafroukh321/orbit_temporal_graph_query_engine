@@ -355,6 +355,65 @@ ORBIT_TEST(PropertyIndexedQueryStillFiltersLabel) {
   REQUIRE(std::get<std::int64_t>(rows[0].values[0]) == 1);
 }
 
+ORBIT_TEST(RicherPredicatesFilterTypedValues) {
+  auto store = sample_store("richer_predicates");
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{1}, "Service", orbit::Interval{0, 100},
+                               {{"score", std::int64_t{3}},
+                                {"ratio", 1.5},
+                                {"tier", std::string{"api"}},
+                                {"active", true}}));
+  REQUIRE(txn.value().put_node(orbit::NodeId{2}, "Service", orbit::Interval{0, 100},
+                               {{"score", std::int64_t{7}},
+                                {"ratio", 2.25},
+                                {"tier", std::string{"worker"}},
+                                {"active", false}}));
+  REQUIRE(txn.value().commit());
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 10});
+  REQUIRE(snapshot);
+
+  auto score = store.prepare("FROM Service WHERE score >= 5 YIELD node.id");
+  REQUIRE(score);
+  auto score_rows = drain(score.value().execute(snapshot.value()).value(), 10);
+  REQUIRE(score_rows.size() == 1);
+  REQUIRE(std::get<std::int64_t>(score_rows[0].values[0]) == 2);
+
+  auto ratio = store.prepare("FROM Service WHERE ratio < 2.0 YIELD node.id");
+  REQUIRE(ratio);
+  auto ratio_rows = drain(ratio.value().execute(snapshot.value()).value(), 10);
+  REQUIRE(ratio_rows.size() == 1);
+  REQUIRE(std::get<std::int64_t>(ratio_rows[0].values[0]) == 1);
+
+  auto tier = store.prepare("FROM Service WHERE tier != api YIELD node.id");
+  REQUIRE(tier);
+  auto tier_rows = drain(tier.value().execute(snapshot.value()).value(), 10);
+  REQUIRE(tier_rows.size() == 1);
+  REQUIRE(std::get<std::int64_t>(tier_rows[0].values[0]) == 2);
+
+  auto active = store.prepare("FROM Service WHERE active != true YIELD node.id");
+  REQUIRE(active);
+  auto active_rows = drain(active.value().execute(snapshot.value()).value(), 10);
+  REQUIRE(active_rows.size() == 1);
+  REQUIRE(std::get<std::int64_t>(active_rows[0].values[0]) == 2);
+}
+
+ORBIT_TEST(RicherPredicateRejectsIncompatibleRangeType) {
+  auto store = sample_store("richer_predicate_type_error");
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{1}, "Service", orbit::Interval{0, 100},
+                               {{"tier", std::string{"api"}}}));
+  REQUIRE(txn.value().commit());
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 10});
+  auto prepared = store.prepare("FROM Service WHERE tier > 3 YIELD node.id");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+  auto cursor = prepared.value().execute(snapshot.value());
+  REQUIRE(!cursor);
+  REQUIRE(cursor.error().code == orbit::ErrorCode::QueryType);
+}
+
 ORBIT_TEST(TemporalIntervalSelectionHandlesStartEndAndFutureStarts) {
   auto store = sample_store("temporal_interval_index_nodes");
   auto txn = store.begin();

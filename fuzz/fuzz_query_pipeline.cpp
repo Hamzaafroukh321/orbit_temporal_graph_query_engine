@@ -42,8 +42,10 @@ int main(int argc, char** argv) {
                              orbit::Interval{0, 10}, {{"w", std::int64_t{2}}});
   (void)txn.value().commit();
 
-  const std::array<const char*, 8> queries{
+  const std::array<const char*, 10> queries{
       "FROM A WHERE k = 7 YIELD node.id",
+      "FROM A WHERE k >= 7 YIELD node.id",
+      "FROM A WHERE k != 9 YIELD node.id",
       "FROM A STEP OUT E YIELD node.id",
       "FROM B STEP IN E YIELD node.id",
       "FROM A PATH OUT E HOPS 2 YIELD path",

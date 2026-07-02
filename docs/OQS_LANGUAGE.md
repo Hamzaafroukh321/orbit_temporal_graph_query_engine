@@ -4,12 +4,19 @@ The implemented OQS subset is original and intentionally small:
 
 ```text
 [AT COMMIT <selector> TIME <integer>] FROM <Label>
-  [WHERE <property> = <literal>]
+  [WHERE <property> <op> <literal>]
   [STEP <IN|OUT> <Type> | PATH <IN|OUT> <Type> [HOPS <integer>] [COST <edge-property>]]
   YIELD node.id | edge.id | path
 ```
 
-`AT` selectors are accepted by the parser, but execution receives its snapshot from the API or CLI `--time` option. Query literals support booleans, signed integers, and strings.
+`AT` selectors are accepted by the parser, but execution receives its snapshot from the API or CLI `--time` option. Query literals support booleans, signed integers, finite doubles, and strings.
+
+`WHERE` supports `=`, `!=`, `<`, `<=`, `>`, and `>=`. Equality uses the
+snapshot property index for exact value lookups. Other predicates scan the
+selected label and apply a typed filter. Numeric predicates compare signed
+integers and doubles together. String predicates use bytewise lexical ordering.
+Boolean predicates support only `=` and `!=`; range operators on booleans or
+incompatible property/literal types return `QueryType`.
 
 ## Ordering
 
@@ -33,5 +40,4 @@ checked-in expected files.
 
 ## Pending
 
-Typed parameters, richer predicates, parallel execution, and explicit order
-clauses remain pending.
+Typed parameters, parallel execution, and explicit order clauses remain pending.

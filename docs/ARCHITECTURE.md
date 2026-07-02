@@ -6,7 +6,7 @@
 - `include/orbit/value.hpp` and `src/base/value.cpp`: IDs, half-open intervals, property values, limits, and checked arithmetic.
 - `include/orbit/format.hpp` and `src/format/ogr.cpp`: OGR-1-inspired superblock, framed transaction records, CRC32C checks, truncation handling, and canonical property ordering.
 - `include/orbit/store.hpp` and `src/store/graph_store.cpp`: single-writer transactions, append-only versions, commit-visible version lookup, explicit temporal interval selection, immutable snapshot materialization, snapshot-local label/property/incoming/outgoing adjacency indexes, reopen, and validation.
-- `include/orbit/query.hpp` and `src/query/query.cpp`: OQS tokenization, parsing, explain fingerprints, indexed scan seeds, indexed bidirectional adjacency expansion, resource-bounded bidirectional BFS path execution, optional edge-cost path ordering, stable continuation keys, and resumable result batches.
+- `include/orbit/query.hpp` and `src/query/query.cpp`: OQS tokenization, parsing, typed property predicates, explain fingerprints, indexed scan seeds, indexed bidirectional adjacency expansion, resource-bounded bidirectional BFS path execution, optional edge-cost path ordering, stable continuation keys, and resumable result batches.
 - `src/cli/main.cpp`: command-line workflow over the same library APIs.
 
 ## Ownership
@@ -31,6 +31,9 @@ The current implementation uses one store mutex around transaction publication a
 - Edges only appear in snapshots when the edge and both endpoints are active at the selected valid time.
 - Snapshot indexes are rebuilt from canonical materialized vectors, so indexed query output remains scan-equivalent and stable.
 - Incoming and outgoing adjacency indexes are both derived from the same active edge vector and preserve edge-ID order.
+- Equality property predicates use the snapshot property index; range and
+  inequality predicates keep label order and apply typed filtering before
+  traversal.
 - Snapshot indexes declare a generation and commit coverage boundary; synchronous snapshot-local indexes cover exactly the snapshot commit.
 - Cache eviction removes only unpinned generations older than the latest registered generation.
 - The current compaction stage plans keep-last-commit retention, rejects publication under active old-generation pins, registers a replacement generation, and retires unpinned older index generations. It does not rewrite OGR bytes into replacement segment files yet.

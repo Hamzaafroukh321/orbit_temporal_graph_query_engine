@@ -23,10 +23,11 @@ Perform the final requirement audit against Sections 20 and 21, then keep any fu
 - Checked arithmetic, IDs, intervals, values and limits.
 - OGR-1 development-subset reader/writer with transaction groups and CRC32C.
 - Single-writer transactions, immutable snapshots, reopen/check and stable commit IDs.
-- OQS subset parser, explain fingerprints, scan, one-hop and bounded path execution.
+- OQS subset parser, typed property predicates, explain fingerprints, scan, one-hop and bounded path execution.
 - Snapshot-local label, property, incoming adjacency, and outgoing adjacency indexes used by query execution.
 - Explicit commit-visible candidate selection followed by temporal interval selection for snapshot materialization.
 - Stable value-based continuation keys for scan, adjacency, and path result batches.
+- `WHERE` predicates for `=`, `!=`, `<`, `<=`, `>`, and `>=` over typed values.
 - Bounded BFS path execution with explicit hop/frontier resource errors and simple-path cycle rejection.
 - Cost-aware bounded path ordering using finite nonnegative edge properties.
 - Bidirectional `STEP IN|OUT` and `PATH IN|OUT` traversal.
@@ -65,7 +66,7 @@ Perform the final requirement audit against Sections 20 and 21, then keep any fu
 - `scripts\build_msvc.cmd` succeeded.
 - `scripts\verify_cmake_matrix.cmd` passed for debug, release, RelWithDebInfo, asan, tsan, coverage, fuzz, CTest, and release install/export.
 - Manual MSVC `/std:c++20 /EHsc /W4 /WX` build succeeded for `orbit_unit_tests.exe`, `orbit.exe`, and all three fuzz smoke executables.
-- `build\manual\orbit_unit_tests.exe` passed: 70 tests, 0 failed.
+- `build\manual\orbit_unit_tests.exe` passed: 72 tests, 0 failed.
 - Fault matrix smoke passed through `scripts\run_fault_matrix.cmd` build/test output, plus direct successful runs of all three fuzz smoke executables.
 - `scripts\run_regression_matrix.cmd --no-build` passed, covering unit tests, fuzz smokes, CLI smoke, and fault matrix smoke.
 - `scripts\verify_msvc.cmd` passed, covering fresh manual build plus the full regression matrix.

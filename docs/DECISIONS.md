@@ -54,16 +54,16 @@ The specification requires an original query language with scans, expansion, bou
 
 ### Decision
 
-Implement the subset `FROM`, optional equality `WHERE`, `STEP OUT`, `PATH OUT HOPS`, and `YIELD node.id|edge.id|path`. Execution receives an immutable snapshot and emits materialized result batches.
+Implement the subset `FROM`, optional typed `WHERE`, `STEP`, `PATH HOPS`, and `YIELD node.id|edge.id|path`. Execution receives an immutable snapshot and emits materialized result batches.
 
 ### Alternatives Considered
 
 - Add a parser generator dependency.
-- Implement richer predicates before storage and snapshot behavior were available.
+- Implement joins, aggregation, or order clauses before storage and snapshot behavior were available.
 
 ### Consequences
 
-The implemented language is intentionally small but exercises production store/query boundaries. Full semantic binding, parameter typing, cost-aware paths, and parallel modes remain pending.
+The implemented language is intentionally small but exercises production store/query boundaries. Full semantic binding, parameter typing, order clauses, and parallel modes remain pending.
 
 ### Validation
 
