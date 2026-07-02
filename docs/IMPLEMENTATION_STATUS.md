@@ -104,7 +104,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`b869032` (`test(fuzz): broaden sequence reference queries`) has passed manual MSVC and CMake/Ninja verification.
+`f3501d1` (`feat(query): add explicit canonical order clauses`) has passed manual MSVC and CMake/Ninja verification.
 
 ## Timestamp
 
