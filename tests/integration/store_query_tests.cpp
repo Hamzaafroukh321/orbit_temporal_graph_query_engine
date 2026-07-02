@@ -414,6 +414,55 @@ ORBIT_TEST(RicherPredicateRejectsIncompatibleRangeType) {
   REQUIRE(cursor.error().code == orbit::ErrorCode::QueryType);
 }
 
+ORBIT_TEST(ParallelDeterministicModeMatchesSerialRows) {
+  auto store = sample_store("parallel_deterministic_rows");
+  auto txn = store.begin();
+  REQUIRE(txn);
+  for (std::int64_t i = 1; i <= 6; ++i) {
+    const auto service = static_cast<std::uint64_t>(i);
+    const auto worker = static_cast<std::uint64_t>(100 + i);
+    const auto database = static_cast<std::uint64_t>(200 + i);
+    REQUIRE(txn.value().put_node(orbit::NodeId{service}, "Service", orbit::Interval{0, 100},
+                                 {{"score", i}}));
+    REQUIRE(txn.value().put_node(orbit::NodeId{worker}, "Worker", orbit::Interval{0, 100}));
+    REQUIRE(txn.value().put_node(orbit::NodeId{database}, "Database", orbit::Interval{0, 100}));
+    REQUIRE(txn.value().put_edge(orbit::EdgeId{service}, orbit::NodeId{service},
+                                 orbit::NodeId{worker}, "DEPENDS", orbit::Interval{0, 100},
+                                 {{"weight", 7 - i}}));
+    REQUIRE(txn.value().put_edge(orbit::EdgeId{worker}, orbit::NodeId{worker},
+                                 orbit::NodeId{database}, "DEPENDS", orbit::Interval{0, 100},
+                                 {{"weight", i}}));
+  }
+  REQUIRE(txn.value().commit());
+
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 10});
+  auto prepared =
+      store.prepare("FROM Service WHERE score >= 3 PATH OUT DEPENDS HOPS 2 COST weight YIELD path");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+
+  orbit::QueryOptions parallel_options;
+  parallel_options.mode = orbit::QueryExecutionMode::ParallelDeterministic;
+  auto serial_cursor = prepared.value().execute(snapshot.value());
+  auto parallel_cursor = prepared.value().execute(snapshot.value(), parallel_options);
+  REQUIRE(serial_cursor);
+  REQUIRE(parallel_cursor);
+  const auto serial_rows = drain(std::move(serial_cursor.value()), 1);
+  const auto parallel_rows = drain(std::move(parallel_cursor.value()), 3);
+  REQUIRE(serial_rows.size() == parallel_rows.size());
+  for (std::size_t i = 0; i < serial_rows.size(); ++i) {
+    REQUIRE(serial_rows[i].values == parallel_rows[i].values);
+  }
+
+  serial_cursor = prepared.value().execute(snapshot.value());
+  parallel_cursor = prepared.value().execute(snapshot.value(), parallel_options);
+  REQUIRE(serial_cursor);
+  REQUIRE(parallel_cursor);
+  const auto serial_keys = drain_keys(std::move(serial_cursor.value()), 1);
+  const auto parallel_keys = drain_keys(std::move(parallel_cursor.value()), 1);
+  REQUIRE(serial_keys == parallel_keys);
+}
+
 ORBIT_TEST(TemporalIntervalSelectionHandlesStartEndAndFutureStarts) {
   auto store = sample_store("temporal_interval_index_nodes");
   auto txn = store.begin();

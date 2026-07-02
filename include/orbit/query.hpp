@@ -31,6 +31,16 @@ struct QueryLimits {
   std::size_t work_limit{100000};
 };
 
+enum class QueryExecutionMode {
+  Serial,
+  ParallelDeterministic,
+};
+
+struct QueryOptions {
+  QueryLimits limits{};
+  QueryExecutionMode mode{QueryExecutionMode::Serial};
+};
+
 struct QueryRow {
   std::vector<PropertyValue> values;
 };
@@ -73,6 +83,10 @@ class PreparedQuery {
   [[nodiscard]] Result<ResultCursor> execute(const GraphSnapshot& snapshot,
                                              QueryLimits limits = {}) const;
   [[nodiscard]] Result<ResultCursor> execute(const GraphSnapshot& snapshot, QueryLimits limits,
+                                             const CancelToken& cancel) const;
+  [[nodiscard]] Result<ResultCursor> execute(const GraphSnapshot& snapshot,
+                                             QueryOptions options) const;
+  [[nodiscard]] Result<ResultCursor> execute(const GraphSnapshot& snapshot, QueryOptions options,
                                              const CancelToken& cancel) const;
   [[nodiscard]] ExplainPlan explain() const;
 

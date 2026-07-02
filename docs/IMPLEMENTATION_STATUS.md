@@ -28,6 +28,7 @@ Perform the final requirement audit against Sections 20 and 21, then keep any fu
 - Explicit commit-visible candidate selection followed by temporal interval selection for snapshot materialization.
 - Stable value-based continuation keys for scan, adjacency, and path result batches.
 - `WHERE` predicates for `=`, `!=`, `<`, `<=`, `>`, and `>=` over typed values.
+- API-level deterministic parallel query execution option for independent seed predicate filtering, with canonical serial ordering and cursor batching preserved.
 - Bounded BFS path execution with explicit hop/frontier resource errors and simple-path cycle rejection.
 - Cost-aware bounded path ordering using finite nonnegative edge properties.
 - Bidirectional `STEP IN|OUT` and `PATH IN|OUT` traversal.
@@ -51,7 +52,7 @@ Perform the final requirement audit against Sections 20 and 21, then keep any fu
 
 ## In-Progress Modules
 
-- Full-version recovery, compaction, background index building, parallel query mode, performance budgets and long-run fuzzing.
+- Full-version recovery, compaction, background index building, broader parallel operator coverage, performance budgets and long-run fuzzing.
 
 ## Known Blockers
 
@@ -67,7 +68,7 @@ Perform the final requirement audit against Sections 20 and 21, then keep any fu
 - `scripts\build_msvc.cmd` succeeded.
 - `scripts\verify_cmake_matrix.cmd` passed for debug, release, RelWithDebInfo, asan, tsan, coverage, fuzz, CTest, and release install/export.
 - Manual MSVC `/std:c++20 /EHsc /W4 /WX` build succeeded for `orbit_unit_tests.exe`, `orbit.exe`, and all three fuzz smoke executables.
-- `build\manual\orbit_unit_tests.exe` passed: 72 tests, 0 failed.
+- `build\manual\orbit_unit_tests.exe` passed: 73 tests, 0 failed.
 - Fault matrix smoke passed through `scripts\run_fault_matrix.cmd` build/test output, plus direct successful runs of all three fuzz smoke executables.
 - `scripts\run_regression_matrix.cmd --no-build` passed, covering unit tests, fuzz smokes, CLI smoke, and fault matrix smoke.
 - `scripts\verify_msvc.cmd` passed, covering fresh manual build plus the full regression matrix.

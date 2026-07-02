@@ -28,6 +28,14 @@ path.
 
 When `COST` is present on a path clause, every traversed edge must contain a finite nonnegative integer or double property with that name. Bounded paths are ordered by cumulative cost, then by stable path continuation key.
 
+## Execution Modes
+
+The public API accepts `QueryOptions` with `QueryExecutionMode::Serial` or
+`QueryExecutionMode::ParallelDeterministic`. The deterministic parallel mode
+parallelizes independent seed predicate filtering, then merges through the same
+canonical ordering and cursor batching rules as serial execution. It does not
+change OQS syntax or explain fingerprints.
+
 ## Diagnostics
 
 Syntax errors include a byte source range when the failing token is known.
@@ -40,4 +48,4 @@ checked-in expected files.
 
 ## Pending
 
-Typed parameters, parallel execution, and explicit order clauses remain pending.
+Typed parameters, broader parallel operator coverage, and explicit order clauses remain pending.

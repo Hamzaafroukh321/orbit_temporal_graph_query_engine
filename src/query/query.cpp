@@ -6,6 +6,7 @@
 #include <cctype>
 #include <cmath>
 #include <deque>
+#include <future>
 #include <numeric>
 #include <set>
 #include <sstream>
@@ -447,7 +448,8 @@ Result<bool> compare_property(const PropertyValue& lhs, PredicateOp op, const Pr
   return make_error(ErrorCode::QueryType, "predicate operands have incompatible types", "query");
 }
 
-Result<bool> property_matches(const NodeVersionView& node, const std::optional<Predicate>& predicate) {
+Result<bool> property_matches(const NodeVersionView& node,
+                              const std::optional<Predicate>& predicate) {
   if (!predicate) {
     return true;
   }
@@ -460,6 +462,75 @@ Result<bool> property_matches(const NodeVersionView& node, const std::optional<P
 
 bool label_matches(const NodeVersionView& node, std::string_view label) {
   return node.label == label;
+}
+
+Result<std::vector<NodeVersionView>> filter_seeds_deterministically(
+    std::vector<NodeVersionView> seeds, const std::optional<Predicate>& predicate) {
+  if (!predicate) {
+    return seeds;
+  }
+  std::vector<NodeVersionView> filtered;
+  filtered.reserve(seeds.size());
+  for (const auto& node : seeds) {
+    auto matches = property_matches(node, predicate);
+    if (!matches) {
+      return matches.error();
+    }
+    if (matches.value()) {
+      filtered.push_back(node);
+    }
+  }
+  return filtered;
+}
+
+struct SeedFilterPartition {
+  std::vector<NodeVersionView> nodes;
+  std::optional<Error> error;
+};
+
+Result<std::vector<NodeVersionView>> filter_seeds_parallel_deterministically(
+    const std::vector<NodeVersionView>& seeds, const std::optional<Predicate>& predicate) {
+  if (!predicate || seeds.size() < 2U) {
+    return filter_seeds_deterministically(seeds, predicate);
+  }
+
+  const std::size_t workers = std::min<std::size_t>(4U, seeds.size());
+  const std::size_t chunk = (seeds.size() + workers - 1U) / workers;
+  std::vector<std::future<SeedFilterPartition>> futures;
+  futures.reserve(workers);
+  for (std::size_t worker = 0; worker < workers; ++worker) {
+    const std::size_t begin = worker * chunk;
+    if (begin >= seeds.size()) {
+      break;
+    }
+    const std::size_t end = std::min(seeds.size(), begin + chunk);
+    futures.push_back(std::async(std::launch::async, [&, begin, end]() {
+      SeedFilterPartition partition;
+      partition.nodes.reserve(end - begin);
+      for (std::size_t index = begin; index < end; ++index) {
+        auto matches = property_matches(seeds[index], predicate);
+        if (!matches) {
+          partition.error = matches.error();
+          return partition;
+        }
+        if (matches.value()) {
+          partition.nodes.push_back(seeds[index]);
+        }
+      }
+      return partition;
+    }));
+  }
+
+  std::vector<NodeVersionView> filtered;
+  filtered.reserve(seeds.size());
+  for (auto& future : futures) {
+    auto partition = future.get();
+    if (partition.error) {
+      return *partition.error;
+    }
+    filtered.insert(filtered.end(), partition.nodes.begin(), partition.nodes.end());
+  }
+  return filtered;
 }
 
 std::optional<NodeVersionView> find_node(const GraphSnapshot& snapshot, NodeId id) {
@@ -567,14 +638,25 @@ PreparedQuery::PreparedQuery() = default;
 PreparedQuery::PreparedQuery(std::shared_ptr<const Impl> impl) : impl_(std::move(impl)) {}
 
 Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, QueryLimits limits) const {
-  return execute(snapshot, limits, CancelToken{});
+  return execute(snapshot, QueryOptions{limits, QueryExecutionMode::Serial}, CancelToken{});
 }
 
 Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, QueryLimits limits,
                                             const CancelToken& cancel) const {
+  return execute(snapshot, QueryOptions{limits, QueryExecutionMode::Serial}, cancel);
+}
+
+Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot,
+                                            QueryOptions options) const {
+  return execute(snapshot, options, CancelToken{});
+}
+
+Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, QueryOptions options,
+                                            const CancelToken& cancel) const {
   if (!impl_) {
     return make_error(ErrorCode::InternalInvariant, "uninitialized prepared query", "query");
   }
+  const QueryLimits limits = options.limits;
   std::vector<QueryRow> rows;
   std::vector<std::string> continuation_keys;
   std::vector<double> row_costs;
@@ -640,18 +722,13 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
   } else {
     seeds = snapshot.nodes_with_label(impl_->ast.source_label);
     if (impl_->ast.where) {
-      std::vector<NodeVersionView> filtered;
-      filtered.reserve(seeds.size());
-      for (const auto& node : seeds) {
-        auto matches = property_matches(node, impl_->ast.where);
-        if (!matches) {
-          return matches.error();
-        }
-        if (matches.value()) {
-          filtered.push_back(node);
-        }
+      auto filtered = options.mode == QueryExecutionMode::ParallelDeterministic
+                          ? filter_seeds_parallel_deterministically(seeds, impl_->ast.where)
+                          : filter_seeds_deterministically(std::move(seeds), impl_->ast.where);
+      if (!filtered) {
+        return filtered.error();
       }
-      seeds = std::move(filtered);
+      seeds = std::move(filtered.value());
     }
   }
   std::sort(seeds.begin(), seeds.end(),
