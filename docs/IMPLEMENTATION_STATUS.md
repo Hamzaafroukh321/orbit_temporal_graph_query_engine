@@ -10,7 +10,7 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through ORB-039 are implemented and manually verified through `8801e74`.
+ORB-001 through ORB-039 are implemented and manually verified; retained compaction semantic verification is implemented through `80e20e8`.
 
 ## Next Actionable Ticket
 
@@ -106,8 +106,8 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`ef3ac2a` (`feat(store): add background index build worker`) has passed manual MSVC and CMake/Ninja verification.
+`80e20e8` (`feat(compact): verify retained snapshot semantics`) has passed manual MSVC and CMake/Ninja verification.
 
 ## Timestamp
 
-2026-06-26 Africa/Casablanca.
+2026-07-02 Africa/Casablanca.
