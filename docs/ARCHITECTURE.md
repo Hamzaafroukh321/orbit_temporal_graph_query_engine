@@ -5,7 +5,7 @@
 - `include/orbit/error.hpp` and `src/base/error.cpp`: stable error categories and diagnostic strings.
 - `include/orbit/value.hpp` and `src/base/value.cpp`: IDs, half-open intervals, property values, limits, and checked arithmetic.
 - `include/orbit/format.hpp` and `src/format/ogr.cpp`: OGR-1-inspired superblock, framed transaction records, CRC32C checks, truncation handling, and canonical property ordering.
-- `include/orbit/store.hpp` and `src/store/graph_store.cpp`: single-writer transactions, append-only versions, commit-visible version lookup, explicit temporal interval selection, immutable snapshot materialization, snapshot-local label/property/incoming/outgoing adjacency indexes, committed-change subscriptions, reopen, and validation.
+- `include/orbit/store.hpp` and `src/store/graph_store.cpp`: single-writer transactions, append-only versions, commit-visible version lookup, explicit temporal interval selection, immutable snapshot materialization, snapshot-local label/property/incoming/outgoing adjacency indexes, background snapshot-index build workers, committed-change subscriptions, reopen, and validation.
 - `include/orbit/query.hpp` and `src/query/query.cpp`: OQS tokenization, parsing, typed property predicates, explain fingerprints, indexed scan seeds, indexed bidirectional adjacency expansion, resource-bounded bidirectional BFS path execution, optional edge-cost path ordering, stable continuation keys, and resumable result batches.
 - `src/cli/main.cpp`: command-line workflow over the same library APIs.
 
@@ -21,7 +21,7 @@ Transactions move from open to committed or aborted. A failed commit leaves the 
 
 ## Locking
 
-The current implementation uses one store mutex around transaction publication and snapshot materialization plus a separate lease-registry mutex for generation pin accounting. It does not yet implement the full lock hierarchy for background builders, cache shards, or compaction workers.
+The current implementation uses one store mutex around transaction publication and snapshot materialization plus a separate lease-registry mutex for generation pin accounting. Background index builds run through bounded snapshot materialization and report coverage, but the implementation does not yet include the full lock hierarchy for cache shards, durable background index catalogs, or compaction workers.
 
 ## Invariants
 
@@ -37,6 +37,7 @@ The current implementation uses one store mutex around transaction publication a
   inequality predicates keep label order and apply typed filtering before
   traversal.
 - Snapshot indexes declare a generation and commit coverage boundary; synchronous snapshot-local indexes cover exactly the snapshot commit.
+- Background index builds materialize a target commit's snapshot-local indexes on a worker and report the generated coverage without exposing raw storage handles.
 - Cache eviction removes only unpinned generations older than the latest registered generation.
 - The current compaction stage plans keep-last-commit retention, rejects publication under active old-generation pins, registers a replacement generation, and retires unpinned older index generations. It does not rewrite OGR bytes into replacement segment files yet.
 - Result batches carry value-based continuation keys derived from node IDs, edge IDs, and path IDs rather than raw iterators.

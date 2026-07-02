@@ -748,6 +748,20 @@ ORBIT_TEST(IndexCoverageMatchesSnapshotCommit) {
   REQUIRE(!coverage.covers(orbit::CommitSeq{snapshot.value().commit().value + 1U}));
 }
 
+ORBIT_TEST(BackgroundIndexBuildReportsCoverage) {
+  auto store = sample_store("background_index_build");
+  seed_graph(store);
+  auto build = store.build_indexes_background();
+  REQUIRE(build);
+  auto report = build.value().wait();
+  REQUIRE(report);
+  REQUIRE(report.value().target_commit.value == store.latest_commit().value);
+  REQUIRE(report.value().generation == store.latest_commit().value);
+  REQUIRE(report.value().indexed_nodes == 2);
+  REQUIRE(report.value().indexed_edges == 1);
+  REQUIRE(!report.value().cancelled);
+}
+
 ORBIT_TEST(HeldSnapshotKeepsOldIndexCoverageAfterNewCommit) {
   auto store = sample_store("index_coverage_held_snapshot");
   seed_graph(store);
@@ -913,6 +927,7 @@ ORBIT_TEST(StoreShutdownRejectsNewWork) {
   REQUIRE(!store.begin());
   REQUIRE(!store.snapshot(orbit::SnapshotSelector{std::nullopt, 25}));
   REQUIRE(!store.prepare("FROM Service YIELD node.id"));
+  REQUIRE(!store.build_indexes_background());
   REQUIRE(!store.compact(1));
 }
 

@@ -36,6 +36,7 @@ Perform the final requirement audit against Sections 20 and 21, then keep any fu
 - Cost-aware bounded path ordering using finite nonnegative edge properties.
 - Bidirectional `STEP IN|OUT` and `PATH IN|OUT` traversal.
 - Snapshot index coverage metadata with generation and commit coverage boundaries.
+- Background snapshot-index build worker API with coverage reporting and shutdown rejection.
 - Generation lease registry, snapshot pins, cache stats, and unpinned index-generation eviction.
 - Keep-last-commit compaction retention planner with pin-aware publishability reports.
 - Compaction publish/retire API that rejects pinned source generations and retires unpinned older index generations.
@@ -55,7 +56,7 @@ Perform the final requirement audit against Sections 20 and 21, then keep any fu
 
 ## In-Progress Modules
 
-- Full-version recovery, compaction, background index building, broader parallel operator coverage, performance budgets and long-run fuzzing.
+- Full-version recovery, compaction, durable background index catalog integration, broader parallel operator coverage, performance budgets and long-run fuzzing.
 
 ## Known Blockers
 
@@ -71,7 +72,7 @@ Perform the final requirement audit against Sections 20 and 21, then keep any fu
 - `scripts\build_msvc.cmd` succeeded.
 - `scripts\verify_cmake_matrix.cmd` passed for debug, release, RelWithDebInfo, asan, tsan, coverage, fuzz, CTest, and release install/export.
 - Manual MSVC `/std:c++20 /EHsc /W4 /WX` build succeeded for `orbit_unit_tests.exe`, `orbit.exe`, and all three fuzz smoke executables.
-- `build\manual\orbit_unit_tests.exe` passed: 76 tests, 0 failed.
+- `build\manual\orbit_unit_tests.exe` passed: 77 tests, 0 failed.
 - Fault matrix smoke passed through `scripts\run_fault_matrix.cmd` build/test output, plus direct successful runs of all three fuzz smoke executables.
 - `scripts\run_regression_matrix.cmd --no-build` passed, covering unit tests, fuzz smokes, CLI smoke, and fault matrix smoke.
 - `scripts\verify_msvc.cmd` passed, covering fresh manual build plus the full regression matrix.

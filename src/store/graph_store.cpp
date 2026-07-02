@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <future>
 #include <map>
 #include <mutex>
 #include <set>
@@ -452,6 +453,43 @@ Result<std::optional<CommitChange>> CommitSubscription::next() {
   return std::optional<CommitChange>{std::nullopt};
 }
 
+struct BackgroundIndexBuildOutcome {
+  BackgroundIndexBuildReport report;
+  std::optional<Error> error;
+};
+
+struct BackgroundIndexBuild::Impl {
+  Impl(std::future<BackgroundIndexBuildOutcome> build_future, std::shared_ptr<bool> cancel_flag)
+      : future(std::move(build_future)), cancelled(std::move(cancel_flag)) {}
+
+  std::future<BackgroundIndexBuildOutcome> future;
+  std::shared_ptr<bool> cancelled;
+};
+
+BackgroundIndexBuild::BackgroundIndexBuild() = default;
+BackgroundIndexBuild::BackgroundIndexBuild(std::shared_ptr<Impl> impl) : impl_(std::move(impl)) {}
+
+void BackgroundIndexBuild::cancel() noexcept {
+  if (impl_ && impl_->cancelled) {
+    *impl_->cancelled = true;
+  }
+}
+
+Result<BackgroundIndexBuildReport> BackgroundIndexBuild::wait() {
+  if (!impl_) {
+    return make_error(ErrorCode::InternalInvariant, "uninitialized background index build",
+                      "store");
+  }
+  if (!impl_->future.valid()) {
+    return make_error(ErrorCode::Conflict, "background index build was already awaited", "store");
+  }
+  auto outcome = impl_->future.get();
+  if (outcome.error) {
+    return *outcome.error;
+  }
+  return outcome.report;
+}
+
 struct Transaction::Impl {
   explicit Impl(std::shared_ptr<GraphStore::Impl> owner) : store(std::move(owner)) {}
 
@@ -734,6 +772,52 @@ Result<std::size_t> GraphStore::evict_unpinned_indexes() {
     return make_error(ErrorCode::InternalInvariant, "uninitialized store", "store");
   }
   return impl_->leases->evict_unpinned();
+}
+
+Result<BackgroundIndexBuild> GraphStore::build_indexes_background(
+    std::optional<CommitSeq> target) {
+  if (!impl_) {
+    return make_error(ErrorCode::InternalInvariant, "uninitialized store", "store");
+  }
+  CommitSeq commit;
+  {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    if (impl_->shutting_down) {
+      return make_error(ErrorCode::Cancelled, "store is shutting down", "store");
+    }
+    commit = target.value_or(impl_->latest);
+    if (commit.value > impl_->latest.value) {
+      return make_error(ErrorCode::NotFound, "background index target is newer than store head",
+                        "store");
+    }
+  }
+
+  auto cancel_flag = std::make_shared<bool>(false);
+  auto store = impl_;
+  auto future = std::async(std::launch::async, [store, commit, cancel_flag]() {
+    BackgroundIndexBuildOutcome outcome;
+    outcome.report.target_commit = commit;
+    if (*cancel_flag) {
+      outcome.report.cancelled = true;
+      return outcome;
+    }
+    auto snapshot = store->make_snapshot(SnapshotSelector{commit, 0});
+    if (!snapshot) {
+      outcome.error = snapshot.error();
+      return outcome;
+    }
+    if (*cancel_flag) {
+      outcome.report.cancelled = true;
+      return outcome;
+    }
+    outcome.report.generation = snapshot.value().index_coverage().generation;
+    outcome.report.indexed_nodes = snapshot.value().nodes().size();
+    outcome.report.indexed_edges = snapshot.value().edges().size();
+    store->leases->register_generation(outcome.report.generation);
+    return outcome;
+  });
+  return BackgroundIndexBuild{
+      std::make_shared<BackgroundIndexBuild::Impl>(std::move(future), cancel_flag)};
 }
 
 Result<CompactionReport> GraphStore::plan_compaction(std::size_t keep_last_commits) const {

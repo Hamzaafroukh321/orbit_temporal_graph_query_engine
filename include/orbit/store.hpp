@@ -65,6 +65,14 @@ struct CompactionReport {
   bool publishable{false};
 };
 
+struct BackgroundIndexBuildReport {
+  CommitSeq target_commit{};
+  std::uint64_t generation{0};
+  std::size_t indexed_nodes{0};
+  std::size_t indexed_edges{0};
+  bool cancelled{false};
+};
+
 struct CommitChange {
   CommitSeq commit{};
   std::vector<NodeId> put_nodes;
@@ -99,6 +107,20 @@ class GraphSnapshot {
 };
 
 class GraphStore;
+
+class BackgroundIndexBuild {
+ public:
+  struct Impl;
+
+  BackgroundIndexBuild();
+  explicit BackgroundIndexBuild(std::shared_ptr<Impl> impl);
+
+  void cancel() noexcept;
+  [[nodiscard]] Result<BackgroundIndexBuildReport> wait();
+
+ private:
+  std::shared_ptr<Impl> impl_;
+};
 
 class CommitSubscription {
  public:
@@ -154,6 +176,8 @@ class GraphStore {
   [[nodiscard]] CommitSeq latest_commit() const;
   [[nodiscard]] CacheStats cache_stats() const;
   [[nodiscard]] Result<std::size_t> evict_unpinned_indexes();
+  [[nodiscard]] Result<BackgroundIndexBuild> build_indexes_background(
+      std::optional<CommitSeq> target = std::nullopt);
   [[nodiscard]] Result<CompactionReport> plan_compaction(std::size_t keep_last_commits) const;
   [[nodiscard]] Result<CompactionReport> compact(std::size_t keep_last_commits);
   [[nodiscard]] Result<CommitSubscription> subscribe_commits(CommitSeq after = {}) const;
