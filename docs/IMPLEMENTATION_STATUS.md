@@ -103,7 +103,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`8ba4402` (`feat(store): add committed-change subscriptions`) has passed manual MSVC and CMake/Ninja verification.
+`b869032` (`test(fuzz): broaden sequence reference queries`) has passed manual MSVC and CMake/Ninja verification.
 
 ## Timestamp
 
