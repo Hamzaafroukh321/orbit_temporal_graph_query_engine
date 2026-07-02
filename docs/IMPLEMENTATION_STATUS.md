@@ -103,7 +103,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`4384870` (`feat(query): add deterministic parallel execution option`) has passed manual MSVC and CMake/Ninja verification.
+`8ba4402` (`feat(store): add committed-change subscriptions`) has passed manual MSVC and CMake/Ninja verification.
 
 ## Timestamp
 
