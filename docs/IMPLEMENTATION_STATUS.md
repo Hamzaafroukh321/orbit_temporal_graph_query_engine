@@ -106,7 +106,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`b7ed135` (`feat(query): bind typed predicate parameters`) has passed manual MSVC and CMake/Ninja verification.
+`ef3ac2a` (`feat(store): add background index build worker`) has passed manual MSVC and CMake/Ninja verification.
 
 ## Timestamp
 
