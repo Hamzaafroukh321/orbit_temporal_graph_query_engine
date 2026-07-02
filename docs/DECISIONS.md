@@ -63,7 +63,7 @@ Implement the subset `FROM`, optional typed `WHERE`, `STEP`, `PATH HOPS`, and `Y
 
 ### Consequences
 
-The implemented language is intentionally small but exercises production store/query boundaries. Full semantic binding, parameter typing, order clauses, and broader parallel operator coverage remain pending.
+The implemented language is intentionally small but exercises production store/query boundaries. Full semantic binding, parameter typing, and broader parallel operator coverage remain pending.
 
 ### Validation
 

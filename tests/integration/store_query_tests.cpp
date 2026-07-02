@@ -242,6 +242,22 @@ ORBIT_TEST(OneHopExpandOrdering) {
   REQUIRE(std::get<std::int64_t>(rows[0].values[0]) == 10);
 }
 
+ORBIT_TEST(ExplicitOrderDescReversesCanonicalRows) {
+  auto store = sample_store("explicit_order_desc");
+  seed_graph(store);
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 25});
+  auto prepared = store.prepare("FROM Database YIELD node.id ORDER DESC");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+  auto rows = drain(prepared.value().execute(snapshot.value()).value(), 10);
+  REQUIRE(rows.size() == 2);
+  REQUIRE(std::get<std::int64_t>(rows[0].values[0]) == 3);
+  REQUIRE(std::get<std::int64_t>(rows[1].values[0]) == 2);
+  auto explain = prepared.value().explain();
+  REQUIRE(std::find(explain.operators.begin(), explain.operators.end(), "explicit-order(desc)") !=
+          explain.operators.end());
+}
+
 ORBIT_TEST(SimplePathRejectsRepeat) {
   auto store = sample_store("simple_path");
   seed_graph(store);

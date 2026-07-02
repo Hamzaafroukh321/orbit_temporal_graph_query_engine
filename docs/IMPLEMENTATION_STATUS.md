@@ -28,6 +28,7 @@ Perform the final requirement audit against Sections 20 and 21, then keep any fu
 - Snapshot-local label, property, incoming adjacency, and outgoing adjacency indexes used by query execution.
 - Explicit commit-visible candidate selection followed by temporal interval selection for snapshot materialization.
 - Stable value-based continuation keys for scan, adjacency, and path result batches.
+- Explicit `ORDER ASC|DESC` clauses over canonical Orbit result order.
 - `WHERE` predicates for `=`, `!=`, `<`, `<=`, `>`, and `>=` over typed values.
 - API-level deterministic parallel query execution option for independent seed predicate filtering, with canonical serial ordering and cursor batching preserved.
 - Bounded BFS path execution with explicit hop/frontier resource errors and simple-path cycle rejection.

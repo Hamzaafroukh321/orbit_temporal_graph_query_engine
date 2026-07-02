@@ -7,6 +7,7 @@ The implemented OQS subset is original and intentionally small:
   [WHERE <property> <op> <literal>]
   [STEP <IN|OUT> <Type> | PATH <IN|OUT> <Type> [HOPS <integer>] [COST <edge-property>]]
   YIELD node.id | edge.id | path
+  [ORDER ASC|DESC]
 ```
 
 `AT` selectors are accepted by the parser, but execution receives its snapshot from the API or CLI `--time` option. Query literals support booleans, signed integers, finite doubles, and strings.
@@ -28,6 +29,10 @@ path.
 
 When `COST` is present on a path clause, every traversed edge must contain a finite nonnegative integer or double property with that name. Bounded paths are ordered by cumulative cost, then by stable path continuation key.
 
+`ORDER ASC` preserves the canonical Orbit order for the selected query form.
+`ORDER DESC` reverses that canonical order after any cost-aware path ordering
+has been applied.
+
 ## Execution Modes
 
 The public API accepts `QueryOptions` with `QueryExecutionMode::Serial` or
@@ -48,4 +53,4 @@ checked-in expected files.
 
 ## Pending
 
-Typed parameters, broader parallel operator coverage, and explicit order clauses remain pending.
+Typed parameters and broader parallel operator coverage remain pending.

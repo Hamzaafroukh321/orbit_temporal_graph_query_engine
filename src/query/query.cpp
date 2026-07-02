@@ -55,6 +55,8 @@ struct QueryAst {
   std::size_t path_hops{1};
   std::optional<std::string> cost_property;
   YieldKind yield{YieldKind::NodeId};
+  bool explicit_order{false};
+  bool order_descending{false};
 };
 
 struct Token {
@@ -248,6 +250,16 @@ class Parser {
       ast.yield = YieldKind::Path;
     } else {
       return syntax("expected node.id, edge.id, or path");
+    }
+    if (match("ORDER")) {
+      ast.explicit_order = true;
+      if (match("ASC")) {
+        ast.order_descending = false;
+      } else if (match("DESC")) {
+        ast.order_descending = true;
+      } else {
+        return syntax("expected ASC or DESC after ORDER");
+      }
     }
     if (!eof()) {
       return syntax("unexpected tokens after query");
@@ -578,6 +590,15 @@ std::string direction_name(Direction direction) {
   return direction == Direction::Out ? "out" : "in";
 }
 
+void apply_explicit_order(const QueryAst& ast, std::vector<QueryRow>& rows,
+                          std::vector<std::string>& continuation_keys) {
+  if (!ast.explicit_order || !ast.order_descending) {
+    return;
+  }
+  std::reverse(rows.begin(), rows.end());
+  std::reverse(continuation_keys.begin(), continuation_keys.end());
+}
+
 }  // namespace
 
 struct PreparedQuery::Impl {
@@ -741,6 +762,7 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
         return emitted.error();
       }
     }
+    apply_explicit_order(impl_->ast, rows, continuation_keys);
     return ResultCursor{std::move(rows), std::move(continuation_keys)};
   }
 
@@ -772,6 +794,7 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
         }
       }
     }
+    apply_explicit_order(impl_->ast, rows, continuation_keys);
     return ResultCursor{std::move(rows), std::move(continuation_keys)};
   }
 
@@ -869,6 +892,7 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
     rows = std::move(sorted_rows);
     continuation_keys = std::move(sorted_keys);
   }
+  apply_explicit_order(impl_->ast, rows, continuation_keys);
   return ResultCursor{std::move(rows), std::move(continuation_keys)};
 }
 
@@ -902,6 +926,10 @@ ExplainPlan PreparedQuery::explain() const {
       plan.operators.push_back("cost-order(" + *impl_->ast.cost_property + ")");
     }
   }
+  if (impl_->ast.explicit_order) {
+    plan.operators.push_back(std::string{"explicit-order("} +
+                             (impl_->ast.order_descending ? "desc" : "asc") + ")");
+  }
   plan.operators.push_back("temporal-filter(commit+valid-time)");
   plan.operators.push_back("project");
   return plan;
@@ -925,6 +953,9 @@ Result<PreparedQuery> prepare_query(std::string_view query, Limits limits) {
               << static_cast<int>(impl->ast.yield) << ";hops=" << impl->ast.path_hops;
   if (impl->ast.cost_property) {
     fingerprint << ";cost=" << *impl->ast.cost_property;
+  }
+  if (impl->ast.explicit_order) {
+    fingerprint << ";order=" << (impl->ast.order_descending ? "desc" : "asc");
   }
   if (impl->ast.where) {
     fingerprint << ";where=" << impl->ast.where->key
