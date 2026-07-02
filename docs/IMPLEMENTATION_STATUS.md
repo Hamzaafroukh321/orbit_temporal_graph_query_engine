@@ -100,7 +100,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`f53e603` (`feat(query): add bidirectional traversal`) has passed manual MSVC and CMake/Ninja verification.
+`974acdc` (`feat(query): add typed where predicates`) has passed manual MSVC and CMake/Ninja verification.
 
 ## Timestamp
 
