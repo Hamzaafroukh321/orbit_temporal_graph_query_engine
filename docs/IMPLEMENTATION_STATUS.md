@@ -37,6 +37,7 @@ Perform the final requirement audit against Sections 20 and 21, then keep any fu
 - Compaction publish/retire API that rejects pinned source generations and retires unpinned older index generations.
 - Cancellation token, query work budget enforcement, and store shutdown rejection for new work.
 - Byte-driven OGR parser/recovery, graph sequence, and query pipeline fuzz smoke harnesses.
+- Independent ordered-map reference comparison inside the graph sequence fuzz smoke for commit heads and bounded path rows across reopens.
 - Fault matrix tests and script for I/O-open failure, malformed mutation rollback, shutdown/cancel safety, compaction failure preservation, and fuzz smoke.
 - Regression, CLI smoke, MSVC verification, and CMake sanitizer/coverage matrix scripts.
 - Coverage CMake preset and coverage instrumentation option for non-MSVC toolchains.
@@ -82,7 +83,7 @@ ASan/UBSan, TSan, coverage, and fuzz presets exist, and `scripts\verify_cmake_ma
 
 ## Fuzz Status
 
-Three production-linked byte-driven fuzz smoke targets exist in `fuzz/`. All three build with the manual MSVC fallback and run successfully against `corpus`.
+Three production-linked byte-driven fuzz smoke targets exist in `fuzz/`. All three build with the manual MSVC fallback and run successfully against `corpus`. The graph sequence smoke compares production commit heads and bounded path rows against an independent ordered-map reference model after each operation and reopen.
 
 ## Documentation Status
 
