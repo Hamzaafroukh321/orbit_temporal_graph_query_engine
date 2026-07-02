@@ -39,6 +39,7 @@ enum class QueryExecutionMode {
 struct QueryOptions {
   QueryLimits limits{};
   QueryExecutionMode mode{QueryExecutionMode::Serial};
+  PropertyMap parameters{};
 };
 
 struct QueryRow {

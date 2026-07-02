@@ -44,6 +44,7 @@ struct Predicate {
   std::string key;
   PredicateOp op{PredicateOp::Equal};
   PropertyValue value;
+  std::optional<std::string> parameter;
 };
 
 struct QueryAst {
@@ -186,7 +187,17 @@ class Parser {
       if (eof()) {
         return syntax("expected literal in WHERE predicate");
       }
-      ast.where = Predicate{key, op.value(), parse_literal(tokens_[pos_++].text)};
+      const auto literal = tokens_[pos_++].text;
+      Predicate predicate{key, op.value(), {}};
+      if (!literal.empty() && literal[0] == '$') {
+        if (literal.size() == 1U) {
+          return syntax("expected parameter name after $");
+        }
+        predicate.parameter = literal.substr(1);
+      } else {
+        predicate.value = parse_literal(literal);
+      }
+      ast.where = std::move(predicate);
     }
 
     if (match("STEP")) {
@@ -472,6 +483,23 @@ Result<bool> property_matches(const NodeVersionView& node,
   return compare_property(found->second, predicate->op, predicate->value);
 }
 
+Result<std::optional<Predicate>> bind_predicate(const std::optional<Predicate>& predicate,
+                                                const PropertyMap& parameters) {
+  if (!predicate) {
+    return std::optional<Predicate>{std::nullopt};
+  }
+  Predicate bound = *predicate;
+  if (bound.parameter) {
+    const auto found = parameters.find(*bound.parameter);
+    if (found == parameters.end()) {
+      return make_error(ErrorCode::QueryType, "query parameter is missing", "query");
+    }
+    bound.value = found->second;
+    bound.parameter.reset();
+  }
+  return std::optional<Predicate>{std::move(bound)};
+}
+
 bool label_matches(const NodeVersionView& node, std::string_view label) {
   return node.label == label;
 }
@@ -678,6 +706,10 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
     return make_error(ErrorCode::InternalInvariant, "uninitialized prepared query", "query");
   }
   const QueryLimits limits = options.limits;
+  auto predicate = bind_predicate(impl_->ast.where, options.parameters);
+  if (!predicate) {
+    return predicate.error();
+  }
   std::vector<QueryRow> rows;
   std::vector<std::string> continuation_keys;
   std::vector<double> row_costs;
@@ -733,8 +765,8 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
   };
 
   std::vector<NodeVersionView> seeds;
-  if (impl_->ast.where && impl_->ast.where->op == PredicateOp::Equal) {
-    seeds = snapshot.nodes_with_property(impl_->ast.where->key, impl_->ast.where->value);
+  if (predicate.value() && predicate.value()->op == PredicateOp::Equal) {
+    seeds = snapshot.nodes_with_property(predicate.value()->key, predicate.value()->value);
     seeds.erase(std::remove_if(seeds.begin(), seeds.end(),
                                [&](const NodeVersionView& node) {
                                  return !label_matches(node, impl_->ast.source_label);
@@ -742,10 +774,10 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
                 seeds.end());
   } else {
     seeds = snapshot.nodes_with_label(impl_->ast.source_label);
-    if (impl_->ast.where) {
+    if (predicate.value()) {
       auto filtered = options.mode == QueryExecutionMode::ParallelDeterministic
-                          ? filter_seeds_parallel_deterministically(seeds, impl_->ast.where)
-                          : filter_seeds_deterministically(std::move(seeds), impl_->ast.where);
+                          ? filter_seeds_parallel_deterministically(seeds, predicate.value())
+                          : filter_seeds_deterministically(std::move(seeds), predicate.value());
       if (!filtered) {
         return filtered.error();
       }
@@ -958,9 +990,12 @@ Result<PreparedQuery> prepare_query(std::string_view query, Limits limits) {
     fingerprint << ";order=" << (impl->ast.order_descending ? "desc" : "asc");
   }
   if (impl->ast.where) {
-    fingerprint << ";where=" << impl->ast.where->key
-                << predicate_op_name(impl->ast.where->op)
-                << canonical_value(impl->ast.where->value);
+    fingerprint << ";where=" << impl->ast.where->key << predicate_op_name(impl->ast.where->op);
+    if (impl->ast.where->parameter) {
+      fingerprint << "$" << *impl->ast.where->parameter;
+    } else {
+      fingerprint << canonical_value(impl->ast.where->value);
+    }
   }
   impl->fingerprint = fingerprint.str();
   return PreparedQuery{impl};

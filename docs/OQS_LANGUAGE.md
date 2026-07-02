@@ -10,7 +10,7 @@ The implemented OQS subset is original and intentionally small:
   [ORDER ASC|DESC]
 ```
 
-`AT` selectors are accepted by the parser, but execution receives its snapshot from the API or CLI `--time` option. Query literals support booleans, signed integers, finite doubles, and strings.
+`AT` selectors are accepted by the parser, but execution receives its snapshot from the API or CLI `--time` option. Query literals support booleans, signed integers, finite doubles, strings, and API-bound parameters written as `$name`.
 
 `WHERE` supports `=`, `!=`, `<`, `<=`, `>`, and `>=`. Equality uses the
 snapshot property index for exact value lookups. Other predicates scan the
@@ -18,6 +18,10 @@ selected label and apply a typed filter. Numeric predicates compare signed
 integers and doubles together. String predicates use bytewise lexical ordering.
 Boolean predicates support only `=` and `!=`; range operators on booleans or
 incompatible property/literal types return `QueryType`.
+
+Parameters are supplied through `QueryOptions::parameters` and use the same
+typed `PropertyValue` representation as stored properties. A missing parameter
+returns `QueryType`.
 
 ## Ordering
 
@@ -53,4 +57,4 @@ checked-in expected files.
 
 ## Pending
 
-Typed parameters and broader parallel operator coverage remain pending.
+Broader parallel operator coverage remains pending.

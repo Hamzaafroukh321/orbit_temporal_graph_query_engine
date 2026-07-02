@@ -477,6 +477,32 @@ ORBIT_TEST(RicherPredicateRejectsIncompatibleRangeType) {
   REQUIRE(cursor.error().code == orbit::ErrorCode::QueryType);
 }
 
+ORBIT_TEST(TypedQueryParametersBindPredicateValues) {
+  auto store = sample_store("typed_query_parameters");
+  auto txn = store.begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().put_node(orbit::NodeId{1}, "Service", orbit::Interval{0, 100},
+                               {{"score", std::int64_t{3}}}));
+  REQUIRE(txn.value().put_node(orbit::NodeId{2}, "Service", orbit::Interval{0, 100},
+                               {{"score", std::int64_t{7}}}));
+  REQUIRE(txn.value().commit());
+
+  auto snapshot = store.snapshot(orbit::SnapshotSelector{std::nullopt, 10});
+  auto prepared = store.prepare("FROM Service WHERE score >= $minimum YIELD node.id");
+  REQUIRE(snapshot);
+  REQUIRE(prepared);
+  orbit::QueryOptions options;
+  options.parameters["minimum"] = std::int64_t{5};
+  auto rows = drain(prepared.value().execute(snapshot.value(), options).value(), 10);
+  REQUIRE(rows.size() == 1);
+  REQUIRE(std::get<std::int64_t>(rows[0].values[0]) == 2);
+
+  orbit::QueryOptions missing;
+  auto missing_cursor = prepared.value().execute(snapshot.value(), missing);
+  REQUIRE(!missing_cursor);
+  REQUIRE(missing_cursor.error().code == orbit::ErrorCode::QueryType);
+}
+
 ORBIT_TEST(ParallelDeterministicModeMatchesSerialRows) {
   auto store = sample_store("parallel_deterministic_rows");
   auto txn = store.begin();
