@@ -10,7 +10,7 @@ Phase 3 - first useful path, with Phase 0-2 vertical-slice work in progress.
 
 ## Last Completed Ticket
 
-ORB-001 through ORB-039 are implemented and manually verified; retained compaction semantic verification is implemented through `80e20e8`, and deterministic recovery prefix verification is implemented through `1767c25`.
+ORB-001 through ORB-039 are implemented and manually verified; retained compaction semantic verification is implemented through `80e20e8`, deterministic recovery prefix verification is implemented through `1767c25`, and deterministic parallel `STEP` expansion is implemented through `3bcbe95`.
 
 ## Next Actionable Ticket
 
@@ -108,7 +108,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`1767c25` (`test(format): verify recovery prefixes`) has passed manual MSVC and CMake/Ninja verification.
+`3bcbe95` (`feat(query): parallelize deterministic step expansion`) has passed manual MSVC and CMake/Ninja verification.
 
 ## Timestamp
 
