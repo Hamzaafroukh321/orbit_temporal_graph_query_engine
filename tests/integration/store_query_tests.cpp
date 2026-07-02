@@ -285,6 +285,53 @@ ORBIT_TEST(ReopenPreservesCommittedStore) {
   REQUIRE(reopened.value().latest_commit().value == 1);
 }
 
+ORBIT_TEST(CommitSubscriptionStreamsLiveAndReopenedChanges) {
+  auto path = orbit::test::temp_path("commit_subscription.ogr");
+  auto store = orbit::GraphStore::open(path, orbit::OpenOptions{true});
+  REQUIRE(store);
+  auto subscription = store.value().subscribe_commits();
+  REQUIRE(subscription);
+  seed_graph(store.value());
+
+  auto first = subscription.value().next();
+  REQUIRE(first);
+  REQUIRE(first.value().has_value());
+  REQUIRE(first.value()->commit.value == 1);
+  const std::vector<orbit::NodeId> expected_put_nodes{orbit::NodeId{1}, orbit::NodeId{2},
+                                                      orbit::NodeId{3}};
+  const std::vector<orbit::EdgeId> expected_put_edges{orbit::EdgeId{10}, orbit::EdgeId{11}};
+  REQUIRE(first.value()->put_nodes == expected_put_nodes);
+  REQUIRE(first.value()->put_edges == expected_put_edges);
+  REQUIRE(first.value()->deleted_nodes.empty());
+  REQUIRE(first.value()->deleted_edges.empty());
+
+  auto txn = store.value().begin();
+  REQUIRE(txn);
+  REQUIRE(txn.value().delete_edge(orbit::EdgeId{10}));
+  REQUIRE(txn.value().commit());
+  auto second = subscription.value().next();
+  REQUIRE(second);
+  REQUIRE(second.value().has_value());
+  REQUIRE(second.value()->commit.value == 2);
+  REQUIRE(second.value()->deleted_edges == std::vector<orbit::EdgeId>{orbit::EdgeId{10}});
+  auto drained = subscription.value().next();
+  REQUIRE(drained);
+  REQUIRE(!drained.value());
+
+  auto reopened = orbit::GraphStore::open(path);
+  REQUIRE(reopened);
+  auto replay = reopened.value().subscribe_commits(orbit::CommitSeq{1});
+  REQUIRE(replay);
+  auto replayed = replay.value().next();
+  REQUIRE(replayed);
+  REQUIRE(replayed.value().has_value());
+  REQUIRE(replayed.value()->commit.value == 2);
+  REQUIRE(replayed.value()->deleted_edges == std::vector<orbit::EdgeId>{orbit::EdgeId{10}});
+  auto replay_drained = replay.value().next();
+  REQUIRE(replay_drained);
+  REQUIRE(!replay_drained.value());
+}
+
 ORBIT_TEST(DeleteEdgeRemovesTraversal) {
   auto store = sample_store("delete_edge");
   seed_graph(store);

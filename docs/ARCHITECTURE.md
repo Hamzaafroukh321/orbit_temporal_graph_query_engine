@@ -5,13 +5,15 @@
 - `include/orbit/error.hpp` and `src/base/error.cpp`: stable error categories and diagnostic strings.
 - `include/orbit/value.hpp` and `src/base/value.cpp`: IDs, half-open intervals, property values, limits, and checked arithmetic.
 - `include/orbit/format.hpp` and `src/format/ogr.cpp`: OGR-1-inspired superblock, framed transaction records, CRC32C checks, truncation handling, and canonical property ordering.
-- `include/orbit/store.hpp` and `src/store/graph_store.cpp`: single-writer transactions, append-only versions, commit-visible version lookup, explicit temporal interval selection, immutable snapshot materialization, snapshot-local label/property/incoming/outgoing adjacency indexes, reopen, and validation.
+- `include/orbit/store.hpp` and `src/store/graph_store.cpp`: single-writer transactions, append-only versions, commit-visible version lookup, explicit temporal interval selection, immutable snapshot materialization, snapshot-local label/property/incoming/outgoing adjacency indexes, committed-change subscriptions, reopen, and validation.
 - `include/orbit/query.hpp` and `src/query/query.cpp`: OQS tokenization, parsing, typed property predicates, explain fingerprints, indexed scan seeds, indexed bidirectional adjacency expansion, resource-bounded bidirectional BFS path execution, optional edge-cost path ordering, stable continuation keys, and resumable result batches.
 - `src/cli/main.cpp`: command-line workflow over the same library APIs.
 
 ## Ownership
 
 `GraphStore` owns durable path state, in-memory version maps, and a generation lease registry. `Transaction` is uniquely owned and writer-confined. `GraphSnapshot` is an immutable shared materialization of one commit/time selector and pins its index generation until the final shared snapshot implementation is released. `PreparedQuery` is immutable and shared. `ResultCursor` is uniquely owned by one consumer.
+`CommitSubscription` owns a cursor over the store's committed-change log and
+polls immutable commit summaries without exposing internal version storage.
 
 ## State Machines
 
@@ -42,3 +44,4 @@ The current implementation uses one store mutex around transaction publication a
   traversal, and prevents repeated nodes within a path.
 - Cost-aware path mode accepts a numeric nonnegative edge property and orders materialized bounded paths by cumulative cost with continuation-key ties.
 - Query execution polls cancellation and logical work budgets. Store shutdown rejects new transactions, snapshots, query preparation, compaction, and open transaction commits.
+- Commit subscriptions emit sorted node/edge mutation IDs after a selected commit and are reconstructed from durable transaction records on reopen.

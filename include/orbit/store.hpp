@@ -65,6 +65,14 @@ struct CompactionReport {
   bool publishable{false};
 };
 
+struct CommitChange {
+  CommitSeq commit{};
+  std::vector<NodeId> put_nodes;
+  std::vector<EdgeId> put_edges;
+  std::vector<NodeId> deleted_nodes;
+  std::vector<EdgeId> deleted_edges;
+};
+
 class GraphSnapshot {
  public:
   struct Impl;
@@ -91,6 +99,19 @@ class GraphSnapshot {
 };
 
 class GraphStore;
+
+class CommitSubscription {
+ public:
+  struct Impl;
+
+  CommitSubscription();
+  explicit CommitSubscription(std::shared_ptr<Impl> impl);
+
+  [[nodiscard]] Result<std::optional<CommitChange>> next();
+
+ private:
+  std::shared_ptr<Impl> impl_;
+};
 
 class Transaction {
  public:
@@ -135,6 +156,7 @@ class GraphStore {
   [[nodiscard]] Result<std::size_t> evict_unpinned_indexes();
   [[nodiscard]] Result<CompactionReport> plan_compaction(std::size_t keep_last_commits) const;
   [[nodiscard]] Result<CompactionReport> compact(std::size_t keep_last_commits);
+  [[nodiscard]] Result<CommitSubscription> subscribe_commits(CommitSeq after = {}) const;
   [[nodiscard]] Result<void> shutdown();
   [[nodiscard]] Result<void> check() const;
   [[nodiscard]] std::string inspect() const;

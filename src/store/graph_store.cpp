@@ -56,6 +56,13 @@ std::string property_index_key(std::string_view key, const PropertyValue& value)
   return joined;
 }
 
+void sort_commit_change(CommitChange& change) {
+  std::sort(change.put_nodes.begin(), change.put_nodes.end());
+  std::sort(change.put_edges.begin(), change.put_edges.end());
+  std::sort(change.deleted_nodes.begin(), change.deleted_nodes.end());
+  std::sort(change.deleted_edges.begin(), change.deleted_edges.end());
+}
+
 template <class View, class IdFn>
 std::vector<View> select_active_at(std::vector<View> candidates, std::int64_t valid_time,
                                    IdFn id_of) {
@@ -306,6 +313,7 @@ struct GraphStore::Impl : std::enable_shared_from_this<GraphStore::Impl> {
       std::make_shared<GraphSnapshot::Impl::LeaseRegistry>()};
   VersionMap<NodeId, NodeRecord> nodes;
   VersionMap<EdgeId, EdgeRecord> edges;
+  std::vector<CommitChange> change_log;
 
   Result<GraphSnapshot> make_snapshot(SnapshotSelector selector) const {
     std::lock_guard<std::mutex> lock(mutex);
@@ -369,17 +377,37 @@ struct GraphStore::Impl : std::enable_shared_from_this<GraphStore::Impl> {
     }
     latest = image.value().latest_commit;
     leases->register_generation(latest.value == 0 ? std::uint64_t{1} : latest.value);
+    std::map<CommitSeq, CommitChange> changes;
     for (const auto& node : image.value().node_versions) {
       nodes[node.id].push_back(NodeRecord{node, false});
+      auto& change = changes[node.begin_commit];
+      change.commit = node.begin_commit;
+      change.put_nodes.push_back(node.id);
     }
     for (const auto& node : image.value().node_tombstones) {
       nodes[node.id].push_back(NodeRecord{node, true});
+      auto& change = changes[node.begin_commit];
+      change.commit = node.begin_commit;
+      change.deleted_nodes.push_back(node.id);
     }
     for (const auto& edge : image.value().edge_versions) {
       edges[edge.id].push_back(EdgeRecord{edge, false});
+      auto& change = changes[edge.begin_commit];
+      change.commit = edge.begin_commit;
+      change.put_edges.push_back(edge.id);
     }
     for (const auto& edge : image.value().edge_tombstones) {
       edges[edge.id].push_back(EdgeRecord{edge, true});
+      auto& change = changes[edge.begin_commit];
+      change.commit = edge.begin_commit;
+      change.deleted_edges.push_back(edge.id);
+    }
+    change_log.clear();
+    change_log.reserve(changes.size());
+    for (auto& [commit, change] : changes) {
+      (void)commit;
+      sort_commit_change(change);
+      change_log.push_back(std::move(change));
     }
     for (auto& [id, history] : nodes) {
       (void)id;
@@ -398,6 +426,31 @@ struct GraphStore::Impl : std::enable_shared_from_this<GraphStore::Impl> {
     return {};
   }
 };
+
+struct CommitSubscription::Impl {
+  Impl(std::shared_ptr<GraphStore::Impl> store_impl, CommitSeq after_commit)
+      : store(std::move(store_impl)), after(after_commit) {}
+
+  std::shared_ptr<GraphStore::Impl> store;
+  CommitSeq after{};
+};
+
+CommitSubscription::CommitSubscription() = default;
+CommitSubscription::CommitSubscription(std::shared_ptr<Impl> impl) : impl_(std::move(impl)) {}
+
+Result<std::optional<CommitChange>> CommitSubscription::next() {
+  if (!impl_ || !impl_->store) {
+    return make_error(ErrorCode::InternalInvariant, "uninitialized commit subscription", "store");
+  }
+  std::lock_guard<std::mutex> lock(impl_->store->mutex);
+  for (const auto& change : impl_->store->change_log) {
+    if (change.commit.value > impl_->after.value) {
+      impl_->after = change.commit;
+      return std::optional<CommitChange>{change};
+    }
+  }
+  return std::optional<CommitChange>{std::nullopt};
+}
 
 struct Transaction::Impl {
   explicit Impl(std::shared_ptr<GraphStore::Impl> owner) : store(std::move(owner)) {}
@@ -581,6 +634,18 @@ Result<CommitSeq> Transaction::commit() {
         EdgeRecord{EdgeVersionView{id, NodeId{0}, NodeId{0}, "", Interval{0, 1}, {}, commit},
                    true});
   }
+  CommitChange change;
+  change.commit = commit;
+  for (const auto& node : nodes) {
+    change.put_nodes.push_back(node.id);
+  }
+  for (const auto& edge : edges) {
+    change.put_edges.push_back(edge.id);
+  }
+  change.deleted_nodes = std::move(node_tombstones);
+  change.deleted_edges = std::move(edge_tombstones);
+  sort_commit_change(change);
+  store.change_log.push_back(std::move(change));
   store.latest = commit;
   store.leases->register_generation(commit.value);
   impl_->closed = true;
@@ -756,6 +821,21 @@ Result<CompactionReport> GraphStore::compact(std::size_t keep_last_commits) {
   }
   (void)evict_unpinned_indexes();
   return planned.value();
+}
+
+Result<CommitSubscription> GraphStore::subscribe_commits(CommitSeq after) const {
+  if (!impl_) {
+    return make_error(ErrorCode::InternalInvariant, "uninitialized store", "store");
+  }
+  std::lock_guard<std::mutex> lock(impl_->mutex);
+  if (impl_->shutting_down) {
+    return make_error(ErrorCode::Cancelled, "store is shutting down", "store");
+  }
+  if (after.value > impl_->latest.value) {
+    return make_error(ErrorCode::NotFound, "subscription start commit is newer than store head",
+                      "store");
+  }
+  return CommitSubscription{std::make_shared<CommitSubscription::Impl>(impl_, after)};
 }
 
 Result<void> GraphStore::shutdown() {
