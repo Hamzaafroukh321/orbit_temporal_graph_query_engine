@@ -41,9 +41,10 @@ has been applied.
 
 The public API accepts `QueryOptions` with `QueryExecutionMode::Serial` or
 `QueryExecutionMode::ParallelDeterministic`. The deterministic parallel mode
-parallelizes independent seed predicate filtering, then merges through the same
-canonical ordering and cursor batching rules as serial execution. It does not
-change OQS syntax or explain fingerprints.
+parallelizes independent seed predicate filtering and one-hop `STEP`
+expansion, then merges through the same canonical ordering and cursor batching
+rules as serial execution. It does not change OQS syntax or explain
+fingerprints.
 
 ## Diagnostics
 
@@ -57,4 +58,4 @@ checked-in expected files.
 
 ## Pending
 
-Broader parallel operator coverage remains pending.
+Broader parallel `PATH`/bounded-BFS operator coverage remains pending.

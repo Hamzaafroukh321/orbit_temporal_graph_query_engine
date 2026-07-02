@@ -18,10 +18,10 @@ produced:
 | Metric | Value |
 | --- | ---: |
 | Entity versions | 2001 |
-| Mutation throughput | 19120.5 versions/s |
-| Point lookup mean | 0.822535 us |
-| One-hop traversal | 377786 rows/s |
-| Bounded path traversal | 161231 rows/s |
+| Mutation throughput | 14204.7 versions/s |
+| Point lookup mean | 0.68251 us |
+| One-hop traversal | 422386 rows/s |
+| Bounded path traversal | 163055 rows/s |
 
 These numbers are a smoke baseline, not final acceptance evidence. Reference
 release builds, hardware details, memory ceilings, recovery startup, compaction

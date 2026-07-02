@@ -588,6 +588,69 @@ std::string path_string(const std::vector<NodeId>& nodes) {
   return out.str();
 }
 
+struct MaterializedRows {
+  std::vector<QueryRow> rows;
+  std::vector<std::string> continuation_keys;
+  std::size_t work_units{0};
+};
+
+Result<MaterializedRows> expand_step_parallel_deterministically(
+    const GraphSnapshot& snapshot, const QueryAst& ast, const std::vector<NodeVersionView>& seeds) {
+  if (seeds.size() < 2U) {
+    return MaterializedRows{};
+  }
+
+  const std::size_t workers = std::min<std::size_t>(4U, seeds.size());
+  const std::size_t chunk = (seeds.size() + workers - 1U) / workers;
+  std::vector<std::future<MaterializedRows>> futures;
+  futures.reserve(workers);
+  for (std::size_t worker = 0; worker < workers; ++worker) {
+    const std::size_t begin = worker * chunk;
+    if (begin >= seeds.size()) {
+      break;
+    }
+    const std::size_t end = std::min(seeds.size(), begin + chunk);
+    futures.push_back(std::async(std::launch::async, [&, begin, end]() {
+      MaterializedRows partition;
+      for (std::size_t index = begin; index < end; ++index) {
+        const auto& seed = seeds[index];
+        ++partition.work_units;
+        const auto adjacent = ast.direction == Direction::Out
+                                  ? snapshot.out_edges(seed.id, ast.edge_type)
+                                  : snapshot.in_edges(seed.id, ast.edge_type);
+        for (const auto& edge : adjacent) {
+          partition.work_units += 2U;
+          const NodeId adjacent_node = ast.direction == Direction::Out ? edge.to : edge.from;
+          if (!find_node(snapshot, adjacent_node)) {
+            continue;
+          }
+          const std::string key = "adj:" + std::to_string(seed.id.value) + ":" +
+                                  std::to_string(edge.id.value) + ":" +
+                                  std::to_string(adjacent_node.value);
+          if (ast.yield == YieldKind::EdgeId) {
+            partition.rows.push_back(QueryRow{{static_cast<std::int64_t>(edge.id.value)}});
+          } else {
+            partition.rows.push_back(QueryRow{{static_cast<std::int64_t>(adjacent_node.value)}});
+          }
+          partition.continuation_keys.push_back(key);
+        }
+      }
+      return partition;
+    }));
+  }
+
+  MaterializedRows merged;
+  for (auto& future : futures) {
+    auto partition = future.get();
+    merged.work_units += partition.work_units;
+    merged.rows.insert(merged.rows.end(), partition.rows.begin(), partition.rows.end());
+    merged.continuation_keys.insert(merged.continuation_keys.end(),
+                                    partition.continuation_keys.begin(),
+                                    partition.continuation_keys.end());
+  }
+  return merged;
+}
+
 Result<double> edge_cost(const EdgeVersionView& edge, const std::string& property) {
   const auto found = edge.properties.find(property);
   if (found == edge.properties.end()) {
@@ -799,6 +862,29 @@ Result<ResultCursor> PreparedQuery::execute(const GraphSnapshot& snapshot, Query
   }
 
   if (impl_->ast.mode == Mode::Step) {
+    if (options.mode == QueryExecutionMode::ParallelDeterministic && seeds.size() >= 2U) {
+      if (cancel.cancelled()) {
+        return make_error(ErrorCode::Cancelled, "query execution cancelled", "query");
+      }
+      auto expanded = expand_step_parallel_deterministically(snapshot, impl_->ast, seeds);
+      if (!expanded) {
+        return expanded.error();
+      }
+      if (expanded.value().work_units > limits.work_limit ||
+          work_units > limits.work_limit - expanded.value().work_units) {
+        return make_error(ErrorCode::ResourceLimit, "query work limit exceeded", "query");
+      }
+      work_units += expanded.value().work_units;
+      if (expanded.value().rows.size() > limits.row_limit ||
+          rows.size() > limits.row_limit - expanded.value().rows.size()) {
+        return make_error(ErrorCode::ResourceLimit, "query row limit exceeded", "query");
+      }
+      rows = std::move(expanded.value().rows);
+      continuation_keys = std::move(expanded.value().continuation_keys);
+      apply_explicit_order(impl_->ast, rows, continuation_keys);
+      return ResultCursor{std::move(rows), std::move(continuation_keys)};
+    }
+
     for (const auto& seed : seeds) {
       auto polled = poll();
       if (!polled) {
