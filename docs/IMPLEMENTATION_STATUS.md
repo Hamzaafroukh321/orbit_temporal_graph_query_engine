@@ -101,7 +101,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`974acdc` (`feat(query): add typed where predicates`) has passed manual MSVC and CMake/Ninja verification.
+`2f84703` (`test(fuzz): compare graph sequence with reference model`) has passed manual MSVC and CMake/Ninja verification.
 
 ## Timestamp
 
