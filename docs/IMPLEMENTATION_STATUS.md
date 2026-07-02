@@ -105,7 +105,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`f3501d1` (`feat(query): add explicit canonical order clauses`) has passed manual MSVC and CMake/Ninja verification.
+`b7ed135` (`feat(query): bind typed predicate parameters`) has passed manual MSVC and CMake/Ninja verification.
 
 ## Timestamp
 
