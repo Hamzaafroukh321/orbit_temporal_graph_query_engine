@@ -102,7 +102,7 @@ Required documentation files exist and describe the implemented subset and pendi
 
 ## Last Verified Commit
 
-`2f84703` (`test(fuzz): compare graph sequence with reference model`) has passed manual MSVC and CMake/Ninja verification.
+`4384870` (`feat(query): add deterministic parallel execution option`) has passed manual MSVC and CMake/Ninja verification.
 
 ## Timestamp
 
