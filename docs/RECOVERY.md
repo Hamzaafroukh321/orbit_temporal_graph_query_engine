@@ -5,13 +5,14 @@ Current recovery behavior is intentionally conservative:
 - The reader starts from the fixed OGR superblock.
 - It scans framed records from offset 4096.
 - Only a complete checksum-valid transaction group ending in `TXN_COMMIT` advances the visible commit.
-- Truncated tails are ignored and expose the previous committed prefix.
+- Truncated tails, including every byte-prefix cut through a multi-commit
+  transaction stream, are ignored and expose the previous committed prefix.
 - Complete records with checksum or semantic integrity errors reject open/check.
 - Compaction publication currently runs retained commit/time snapshot and
   snapshot-index semantic probes before publishing replacement generation
   metadata.
 
-Pending full-version recovery work includes dual superblocks, checkpoints, fsync boundary fault injection, torn-write matrices, relocated compaction candidate validation, durable catalog publication, and idempotent salvage tooling.
+Pending full-version recovery work includes dual superblocks, checkpoints, host-level fsync fault injection, torn-write matrices beyond deterministic prefix cuts, relocated compaction candidate validation, durable catalog publication, and idempotent salvage tooling.
 
 ## Soak Smoke
 

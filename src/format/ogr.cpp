@@ -415,6 +415,9 @@ Result<DecodedRecord> decode_record(const std::vector<std::uint8_t>& bytes, std:
     }
     ++offset;
   }
+  if (offset % 8U != 0U) {
+    return make_error(ErrorCode::Format, "truncated record padding", "ogr");
+  }
   auto type = static_cast<RecordType>(type_raw.value());
   switch (type) {
     case RecordType::TxnBegin:
